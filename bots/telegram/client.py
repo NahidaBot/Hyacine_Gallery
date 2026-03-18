@@ -148,5 +148,14 @@ class GalleryClient:
         artworks = [ArtworkData.from_response(a) for a in data["data"]]
         return artworks, data["total"]
 
+    async def import_artwork(self, url: str, tags: list[str] | None = None) -> ArtworkData:
+        """Call the backend import endpoint: crawl URL → create artwork."""
+        payload: dict[str, object] = {"url": url}
+        if tags:
+            payload["tags"] = tags
+        resp = await self.http.post("/api/admin/artworks/import", json=payload)
+        resp.raise_for_status()
+        return ArtworkData.from_response(resp.json())
+
     async def close(self) -> None:
         await self.http.aclose()

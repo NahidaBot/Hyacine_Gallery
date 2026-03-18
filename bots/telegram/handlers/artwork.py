@@ -1,9 +1,11 @@
-"""Artwork-related command handlers: /random, /post."""
+"""Artwork-related command handlers: /random, /post, /import."""
 
 from __future__ import annotations
 
 import logging
+import re
 
+import httpx
 from telegram import InputMediaPhoto, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
@@ -191,3 +193,54 @@ async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"Posted: {link}")
     else:
         await update.message.reply_text("Failed to post (no images or channel error).")
+
+
+_URL_RE = re.compile(r"https?://\S+")
+_TAG_RE = re.compile(r"#(\S+)")
+
+
+async def import_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /import <url> [#tag1 #tag2] — crawl URL and save artwork (admin only).
+
+    Optionally pass --post to also post to the channel after import.
+    """
+    if not update.message or not update.effective_user:
+        return
+
+    if not _is_admin(update.effective_user.id):
+        await update.message.reply_text("Permission denied.")
+        return
+
+    text = update.message.text or ""
+    # Extract URL
+    url_match = _URL_RE.search(text)
+    if not url_match:
+        await update.message.reply_text("Usage: /import <url> [#tag1 #tag2] [--post]")
+        return
+
+    url = url_match.group(0)
+    tags = _TAG_RE.findall(text)
+    should_post = "--post" in text
+
+    status_msg = await update.message.reply_text(f"Importing {url} ...")
+
+    client = _get_client(context)
+    try:
+        artwork = await client.import_artwork(url, tags=tags or None)
+    except httpx.HTTPStatusError as e:
+        error_detail = e.response.text[:200] if e.response else str(e)
+        await status_msg.edit_text(f"Import failed: {error_detail}")
+        return
+
+    # Show the imported artwork
+    await send_artwork(update, artwork)
+
+    # Optionally post to channel
+    if should_post and bot_settings.telegram_channel:
+        link = await post_to_channel(context, artwork)
+        if link:
+            await status_msg.edit_text(f"Imported #{artwork.id} and posted: {link}")
+        else:
+            await status_msg.edit_text(f"Imported #{artwork.id}, but channel post failed.")
+    else:
+        await status_msg.edit_text(f"Imported artwork #{artwork.id} ({artwork.platform}).")

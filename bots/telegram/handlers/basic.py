@@ -14,7 +14,8 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
-        "/post <url> #tag1 #tag2 — Post artwork to channel\n"
+        "/import <url> [#tag1 #tag2] [--post] — Crawl URL and save artwork\n"
+        "/post <artwork_id> — Post artwork to channel\n"
         "/random — Get a random artwork\n"
         "/help — Show this message"
     )
