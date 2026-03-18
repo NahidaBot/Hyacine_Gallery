@@ -1,3 +1,3 @@
-from app.models.artwork import Artwork, ArtworkTag
+from app.models.artwork import Artwork, ArtworkImage, ArtworkTag, BotPostLog, Tag
 
-__all__ = ["Artwork", "ArtworkTag"]
+__all__ = ["Artwork", "ArtworkImage", "ArtworkTag", "BotPostLog", "Tag"]

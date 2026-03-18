@@ -1,6 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -8,6 +17,7 @@ from app.database import Base
 
 class Artwork(Base):
     __tablename__ = "artworks"
+    __table_args__ = (UniqueConstraint("platform", "pid", name="uq_artworks_platform_pid"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     platform: Mapped[str] = mapped_column(String(50), index=True)
@@ -16,30 +26,11 @@ class Artwork(Base):
     author: Mapped[str] = mapped_column(String(255), default="")
     author_id: Mapped[str] = mapped_column(String(255), default="")
     source_url: Mapped[str] = mapped_column(String(2048), default="")
-
-    # Image metadata
     page_count: Mapped[int] = mapped_column(Integer, default=1)
-    width: Mapped[int] = mapped_column(Integer, default=0)
-    height: Mapped[int] = mapped_column(Integer, default=0)
     is_nsfw: Mapped[bool] = mapped_column(Boolean, default=False)
     is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # Storage
-    images_json: Mapped[str] = mapped_column(Text, default="[]")
-
-    # Raw metadata from platform
     raw_info: Mapped[str] = mapped_column(Text, default="{}")
 
-    # Telegram compatibility
-    telegram_file_id_thumb: Mapped[str] = mapped_column(String(255), default="")
-    telegram_file_id_original: Mapped[str] = mapped_column(String(255), default="")
-    telegram_message_link: Mapped[str] = mapped_column(String(500), default="")
-
-    # Posting metadata
-    posted_by: Mapped[str] = mapped_column(String(255), default="")
-    post_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -47,15 +38,77 @@ class Artwork(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # Relationships
-    tags: Mapped[list["ArtworkTag"]] = relationship(back_populates="artwork", cascade="all, delete")
+    images: Mapped[list["ArtworkImage"]] = relationship(
+        back_populates="artwork", cascade="all, delete-orphan", order_by="ArtworkImage.page_index"
+    )
+    tags: Mapped[list["Tag"]] = relationship(
+        secondary="artwork_tags", back_populates="artworks"
+    )
+    post_logs: Mapped[list["BotPostLog"]] = relationship(
+        back_populates="artwork", cascade="all, delete-orphan"
+    )
+
+
+class ArtworkImage(Base):
+    __tablename__ = "artwork_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artwork_id: Mapped[int] = mapped_column(ForeignKey("artworks.id", ondelete="CASCADE"))
+    page_index: Mapped[int] = mapped_column(Integer, default=0)
+    url_original: Mapped[str] = mapped_column(String(2048), default="")
+    url_thumb: Mapped[str] = mapped_column(String(2048), default="")
+    width: Mapped[int] = mapped_column(Integer, default=0)
+    height: Mapped[int] = mapped_column(Integer, default=0)
+    file_size: Mapped[int] = mapped_column(Integer, default=0)
+    file_name: Mapped[str] = mapped_column(String(500), default="")
+    storage_path: Mapped[str] = mapped_column(String(1024), default="")
+    telegram_file_id: Mapped[str] = mapped_column(String(255), default="")
+
+    artwork: Mapped["Artwork"] = relationship(back_populates="images")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    type: Mapped[str] = mapped_column(String(50), default="general")
+    alias_of_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tags.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    alias_of: Mapped["Tag | None"] = relationship(remote_side=[id])
+    artworks: Mapped[list["Artwork"]] = relationship(
+        secondary="artwork_tags", back_populates="tags"
+    )
 
 
 class ArtworkTag(Base):
     __tablename__ = "artwork_tags"
 
+    artwork_id: Mapped[int] = mapped_column(
+        ForeignKey("artworks.id", ondelete="CASCADE"), primary_key=True
+    )
+    tag_id: Mapped[int] = mapped_column(
+        ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class BotPostLog(Base):
+    __tablename__ = "bot_post_logs"
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     artwork_id: Mapped[int] = mapped_column(ForeignKey("artworks.id", ondelete="CASCADE"))
-    tag: Mapped[str] = mapped_column(String(255), index=True)
+    bot_platform: Mapped[str] = mapped_column(String(50))
+    channel_id: Mapped[str] = mapped_column(String(255), default="")
+    message_id: Mapped[str] = mapped_column(String(255), default="")
+    message_link: Mapped[str] = mapped_column(String(500), default="")
+    posted_by: Mapped[str] = mapped_column(String(255), default="")
+    posted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
-    artwork: Mapped["Artwork"] = relationship(back_populates="tags")
+    artwork: Mapped["Artwork"] = relationship(back_populates="post_logs")
