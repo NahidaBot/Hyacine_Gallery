@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hyacine Gallery 前端
 
-## Getting Started
+基于 Next.js 16 (App Router) + TypeScript + Tailwind CSS 4 的画廊前端。
 
-First, run the development server:
+## 开发
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev          # 开发服务器 http://localhost:3000
+pnpm build        # 生产构建
+pnpm lint         # ESLint 检查
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 环境变量
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+在 `.env.local` 或项目根 `.env` 中配置：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-## Learn More
+## 页面
 
-To learn more about Next.js, take a look at the following resources:
+| 路径 | 说明 |
+|------|------|
+| `/` | 画廊首页，分页浏览作品 |
+| `/artwork/:id` | 作品详情页 |
+| `/tags` | 标签列表 |
+| `/panel/:slug/` | 管理面板入口 |
+| `/panel/:slug/artworks` | 作品管理（列表、搜索、导入、删除） |
+| `/panel/:slug/artworks/:id` | 作品编辑（标题、作者、标签、标记） |
+| `/panel/:slug/tags` | 标签管理（创建、编辑、删除） |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 管理面板
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+访问 `/panel/<slug>/`，首次进入会提示输入 admin token（与后端 `ADMIN_TOKEN` 一致）。Token 保存在 localStorage，可在侧边栏点击"Change token"更换。
