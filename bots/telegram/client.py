@@ -76,6 +76,31 @@ class ArtworkData:
         return [img.url_original for img in sorted(self.images, key=lambda i: i.page_index)]
 
 
+@dataclass
+class ChannelData:
+    id: int
+    platform: str
+    channel_id: str
+    name: str
+    is_default: bool
+    priority: int
+    conditions: dict  # type: ignore[type-arg]
+    enabled: bool
+
+    @classmethod
+    def from_response(cls, data: dict) -> ChannelData:  # type: ignore[type-arg]
+        return cls(
+            id=data["id"],
+            platform=data["platform"],
+            channel_id=data["channel_id"],
+            name=data["name"],
+            is_default=data["is_default"],
+            priority=data["priority"],
+            conditions=data.get("conditions", {}),
+            enabled=data["enabled"],
+        )
+
+
 class GalleryClient:
     def __init__(self, base_url: str, admin_token: str) -> None:
         self.http = httpx.AsyncClient(
@@ -149,13 +174,59 @@ class GalleryClient:
         return artworks, data["total"]
 
     async def import_artwork(self, url: str, tags: list[str] | None = None) -> ArtworkData:
-        """Call the backend import endpoint: crawl URL → create artwork."""
+        """Call the backend import endpoint: crawl URL -> create artwork."""
         payload: dict[str, object] = {"url": url}
         if tags:
             payload["tags"] = tags
         resp = await self.http.post("/api/admin/artworks/import", json=payload)
         resp.raise_for_status()
         return ArtworkData.from_response(resp.json())
+
+    # --- Bot management APIs ---
+
+    async def resolve_channel(self, artwork_id: int, platform: str = "telegram") -> ChannelData | None:
+        """Ask the backend which channel this artwork should be posted to."""
+        resp = await self.http.post(
+            "/api/admin/bot/channels/resolve",
+            json={"artwork_id": artwork_id, "platform": platform},
+        )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        if data is None:
+            return None
+        return ChannelData.from_response(data)
+
+    async def create_post_log(
+        self,
+        *,
+        artwork_id: int,
+        bot_platform: str = "telegram",
+        channel_id: str,
+        message_id: str = "",
+        message_link: str = "",
+        posted_by: str = "",
+    ) -> dict:  # type: ignore[type-arg]
+        resp = await self.http.post(
+            "/api/admin/bot/post-logs",
+            json={
+                "artwork_id": artwork_id,
+                "bot_platform": bot_platform,
+                "channel_id": channel_id,
+                "message_id": message_id,
+                "message_link": message_link,
+                "posted_by": posted_by,
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_bot_settings(self) -> dict[str, str]:
+        """Fetch all bot settings from the backend."""
+        resp = await self.http.get("/api/admin/bot/settings")
+        resp.raise_for_status()
+        return {s["key"]: s["value"] for s in resp.json()}
 
     async def close(self) -> None:
         await self.http.aclose()

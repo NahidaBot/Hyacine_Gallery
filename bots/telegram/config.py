@@ -14,7 +14,11 @@ class BotSettings(BaseSettings):
     telegram_comment_group: str = ""
     telegram_admin_chats: list[int] = []
 
-    # Behavior
+    # Behavior (defaults, can be overridden by backend bot_settings)
+    notification_interval: int = 600
+    message_tail_text: str = ""
+
+    # Debug
     debug: bool = False
 
 

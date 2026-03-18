@@ -14,10 +14,13 @@ async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = (
-        "/import <url> [#tag1 #tag2] [--post] — Crawl URL and save artwork\n"
-        "/post <artwork_id> — Post artwork to channel\n"
+        "<b>Commands:</b>\n"
+        "/post &lt;url&gt; [#tag1 #tag2] — Import and post to channel\n"
+        "/post &lt;url&gt; --no-post — Import only (no channel post)\n"
+        "/post &lt;id&gt; — Post existing artwork to channel\n"
+        "/import &lt;url&gt; [#tag1 #tag2] — Import only (alias)\n"
         "/random — Get a random artwork\n"
         "/help — Show this message"
     )
     if update.message:
-        await update.message.reply_text(text)
+        await update.message.reply_text(text, parse_mode="HTML")
