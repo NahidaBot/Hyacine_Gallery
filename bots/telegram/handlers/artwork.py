@@ -179,6 +179,9 @@ async def post_to_channel(
 
     context.bot_data["last_post_time"] = now
 
+    # Cache channel message → artwork for original image delivery in comment group
+    context.bot_data.setdefault("channel_posts", {})[int(msg_id)] = artwork
+
     link = _message_link(channel_id, int(msg_id))
     return PostResult(message_link=link, message_id=msg_id, channel_id=channel_id)
 
