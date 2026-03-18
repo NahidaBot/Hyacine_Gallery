@@ -38,6 +38,9 @@ export default function PanelLayout({
     { href: base, label: "Dashboard" },
     { href: `${base}/artworks`, label: "Artworks" },
     { href: `${base}/tags`, label: "Tags" },
+    { href: `${base}/bot`, label: "Bot Settings" },
+    { href: `${base}/bot/channels`, label: "Bot Channels" },
+    { href: `${base}/bot/logs`, label: "Post Logs" },
   ];
 
   return (
@@ -48,7 +51,9 @@ export default function PanelLayout({
         </h2>
         <nav className="flex flex-col gap-1">
           {nav.map((item) => {
-            const active = pathname === item.href;
+            const active =
+              pathname === item.href ||
+              (item.href !== base && pathname.startsWith(item.href + "/"));
             return (
               <Link
                 key={item.href}

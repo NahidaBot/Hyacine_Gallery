@@ -1,4 +1,13 @@
-import type { Artwork, ArtworkListResponse, Tag, TagListResponse } from "@/types";
+import type {
+  Artwork,
+  ArtworkListResponse,
+  BotChannel,
+  BotPostLog,
+  BotPostLogListResponse,
+  BotSetting,
+  Tag,
+  TagListResponse,
+} from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -108,4 +117,86 @@ export async function adminUpdateTag(
 
 export async function adminDeleteTag(id: number): Promise<void> {
   await adminFetch<unknown>(`/api/admin/tags/${id}`, { method: "DELETE" });
+}
+
+// ── Bot Channels ──
+
+export async function adminFetchBotChannels(
+  platform = "telegram",
+): Promise<BotChannel[]> {
+  return adminFetch<BotChannel[]>(
+    `/api/admin/bot/channels?platform=${encodeURIComponent(platform)}`,
+  );
+}
+
+export async function adminCreateBotChannel(data: {
+  platform?: string;
+  channel_id: string;
+  name?: string;
+  is_default?: boolean;
+  priority?: number;
+  conditions?: Record<string, unknown>;
+  enabled?: boolean;
+}): Promise<BotChannel> {
+  return adminFetch<BotChannel>("/api/admin/bot/channels", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminUpdateBotChannel(
+  id: number,
+  data: {
+    channel_id?: string;
+    name?: string;
+    is_default?: boolean;
+    priority?: number;
+    conditions?: Record<string, unknown>;
+    enabled?: boolean;
+  },
+): Promise<BotChannel> {
+  return adminFetch<BotChannel>(`/api/admin/bot/channels/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteBotChannel(id: number): Promise<void> {
+  await adminFetch<unknown>(`/api/admin/bot/channels/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Bot Settings ──
+
+export async function adminFetchBotSettings(): Promise<BotSetting[]> {
+  return adminFetch<BotSetting[]>("/api/admin/bot/settings");
+}
+
+export async function adminUpdateBotSettings(
+  settings: Record<string, string>,
+): Promise<void> {
+  await adminFetch<unknown>("/api/admin/bot/settings", {
+    method: "PUT",
+    body: JSON.stringify({ settings }),
+  });
+}
+
+// ── Post Logs ──
+
+export async function adminFetchPostLogs(params?: {
+  artwork_id?: number;
+  channel_id?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<BotPostLogListResponse> {
+  const sp = new URLSearchParams();
+  if (params?.artwork_id) sp.set("artwork_id", String(params.artwork_id));
+  if (params?.channel_id) sp.set("channel_id", params.channel_id);
+  if (params?.page) sp.set("page", String(params.page));
+  if (params?.page_size) sp.set("page_size", String(params.page_size));
+  const qs = sp.toString();
+  return adminFetch<BotPostLogListResponse>(
+    `/api/admin/bot/post-logs${qs ? `?${qs}` : ""}`,
+  );
 }

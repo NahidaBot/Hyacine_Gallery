@@ -53,3 +53,41 @@ export interface TagListResponse {
   data: Tag[];
   total: number;
 }
+
+// ── Bot ──
+
+export interface BotChannel {
+  id: number;
+  platform: string;
+  channel_id: string;
+  name: string;
+  is_default: boolean;
+  priority: number;
+  conditions: Record<string, unknown>;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface BotPostLog {
+  id: number;
+  artwork_id: number;
+  bot_platform: string;
+  channel_id: string;
+  message_id: string;
+  message_link: string;
+  posted_by: string;
+  posted_at: string;
+}
+
+export interface BotPostLogListResponse {
+  data: BotPostLog[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface BotSetting {
+  key: string;
+  value: string;
+  description: string;
+}
