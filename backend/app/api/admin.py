@@ -12,7 +12,7 @@ from app.schemas.artwork import (
     ArtworkUpdate,
 )
 from app.schemas.tag import TagCreate, TagResponse, TagUpdate
-from app.services import artwork_service, tag_service
+from app.services import artwork_service, storage_service, tag_service
 
 router = APIRouter(dependencies=[AdminDep])
 
@@ -80,6 +80,10 @@ async def import_artwork(
     if result.raw_info:
         artwork.raw_info = json.dumps(result.raw_info, ensure_ascii=False)
         await db.commit()
+
+    # Download, compress, and store images (background-tolerant, logs errors per image)
+    await storage_service.download_and_store_images(db, artwork)
+    await db.refresh(artwork, attribute_names=["images"])
 
     return ArtworkResponse.model_validate(artwork)
 

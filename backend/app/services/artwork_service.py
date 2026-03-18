@@ -84,6 +84,10 @@ async def _get_or_create_tags(db: AsyncSession, tag_names: list[str]) -> list[Ta
 
 
 async def create_artwork(db: AsyncSession, data: ArtworkCreate) -> Artwork:
+    # Resolve tags before adding artwork to session to avoid lazy-load in async context
+    tags = await _get_or_create_tags(db, data.tags)
+    images = [ArtworkImage(page_index=i, url_original=url) for i, url in enumerate(data.image_urls)]
+
     artwork = Artwork(
         platform=data.platform,
         pid=data.pid,
@@ -94,16 +98,13 @@ async def create_artwork(db: AsyncSession, data: ArtworkCreate) -> Artwork:
         page_count=data.page_count,
         is_nsfw=data.is_nsfw,
         is_ai=data.is_ai,
+        images=images,
+        tags=tags,
     )
     db.add(artwork)
 
-    for i, url in enumerate(data.image_urls):
-        artwork.images.append(ArtworkImage(page_index=i, url_original=url))
-
-    artwork.tags = await _get_or_create_tags(db, data.tags)
-
     await db.commit()
-    await db.refresh(artwork, attribute_names=["images", "tags"])
+    await db.refresh(artwork, attribute_names=["images", "tags", "created_at", "updated_at"])
     return artwork
 
 
@@ -121,7 +122,7 @@ async def update_artwork(db: AsyncSession, artwork_id: int, data: ArtworkUpdate)
         artwork.tags = await _get_or_create_tags(db, data.tags)
 
     await db.commit()
-    await db.refresh(artwork, attribute_names=["images", "tags"])
+    await db.refresh(artwork, attribute_names=["images", "tags", "created_at", "updated_at"])
     return artwork
 
 

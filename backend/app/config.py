@@ -11,8 +11,20 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     # Storage
-    storage_backend: str = "local"
+    storage_backend: str = "local"  # "local" or "s3"
     storage_local_path: str = "./uploads"
+
+    # S3
+    s3_endpoint: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_bucket: str = ""
+    s3_region: str = ""
+    s3_public_url: str = ""  # Public CDN/URL prefix for S3 objects
+
+    # Image processing
+    thumb_max_edge: int = 1536
+    webp_quality: int = 80
 
     # Admin
     admin_panel_slug: str = "change-me-to-random-string"
