@@ -1,4 +1,4 @@
-import type { Artwork, ArtworkListResponse, TagCount } from "@/types";
+import type { Artwork, ArtworkListResponse, TagListResponse } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -42,6 +42,6 @@ export async function fetchRandomArtwork(): Promise<Artwork> {
   return apiFetch<Artwork>("/api/artworks/random");
 }
 
-export async function fetchTags(): Promise<TagCount[]> {
-  return apiFetch<TagCount[]>("/api/tags");
+export async function fetchTags(): Promise<TagListResponse> {
+  return apiFetch<TagListResponse>("/api/tags");
 }

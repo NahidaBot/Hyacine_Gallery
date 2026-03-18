@@ -17,8 +17,6 @@ export default async function ArtworkPage({ params }: Props) {
     notFound();
   }
 
-  const images = JSON.parse(artwork.images_json) as string[];
-
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-2 text-2xl font-bold">
@@ -42,12 +40,12 @@ export default async function ArtworkPage({ params }: Props) {
       </p>
 
       <div className="space-y-4">
-        {images.map((url, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
+        {artwork.images.map((img) => (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            key={i}
-            src={url}
-            alt={`${artwork.title || artwork.pid} page ${i + 1}`}
+            key={img.id}
+            src={img.url_original}
+            alt={`${artwork.title || artwork.pid} page ${img.page_index + 1}`}
             className="w-full rounded-lg"
             loading="lazy"
           />
@@ -58,11 +56,11 @@ export default async function ArtworkPage({ params }: Props) {
         <div className="mt-6 flex flex-wrap gap-2">
           {artwork.tags.map((tag) => (
             <a
-              key={tag}
-              href={`/tags/${encodeURIComponent(tag)}`}
+              key={tag.id}
+              href={`/tags/${encodeURIComponent(tag.name)}`}
               className="rounded-full bg-neutral-100 px-3 py-1 text-sm hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700"
             >
-              #{tag}
+              #{tag.name}
             </a>
           ))}
         </div>

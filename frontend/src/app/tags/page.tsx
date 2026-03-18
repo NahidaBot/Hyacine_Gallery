@@ -3,20 +3,20 @@ import { fetchTags } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 export default async function TagsPage() {
-  const tags = await fetchTags();
+  const { data: tags } = await fetchTags();
 
   return (
     <div>
       <h1 className="mb-6 text-2xl font-bold">Tags</h1>
       <div className="flex flex-wrap gap-3">
-        {tags.map(({ tag, count }) => (
+        {tags.map(({ name, artwork_count }) => (
           <a
-            key={tag}
-            href={`/?tag=${encodeURIComponent(tag)}`}
+            key={name}
+            href={`/?tag=${encodeURIComponent(name)}`}
             className="rounded-full bg-neutral-100 px-4 py-2 text-sm transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700"
           >
-            #{tag}
-            <span className="ml-1.5 text-neutral-400">{count}</span>
+            #{name}
+            <span className="ml-1.5 text-neutral-400">{artwork_count}</span>
           </a>
         ))}
         {tags.length === 0 && (
