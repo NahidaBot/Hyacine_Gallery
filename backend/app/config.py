@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     # Database
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hyacine_gallery"
+    database_url: str = "sqlite+aiosqlite:///./hyacine_gallery.db"
 
     # Redis
     redis_url: str = "redis://localhost:6379/0"

@@ -26,7 +26,11 @@ async def get_artworks(
     if tag:
         query = query.where(Artwork.tags.any(Tag.name == tag))
     if q:
-        query = query.where(Artwork.title.ilike(f"%{q}%") | Artwork.author.ilike(f"%{q}%"))
+        pattern = f"%{q}%"
+        query = query.where(
+            func.lower(Artwork.title).like(func.lower(pattern))
+            | func.lower(Artwork.author).like(func.lower(pattern))
+        )
 
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
