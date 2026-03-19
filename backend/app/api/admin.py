@@ -1,6 +1,9 @@
+import io
 import json
 
-from fastapi import APIRouter, HTTPException
+import imagehash
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import AdminDep, DBDep
@@ -162,6 +165,44 @@ async def import_artwork(
         artwork=ArtworkResponse.model_validate(artwork),
         message="Created new artwork.",
     )
+
+
+# --- Image Search (pHash) ---
+
+
+@router.post("/artworks/search-by-image", response_model=list[SimilarArtworkInfo])
+async def search_by_image(
+    file: UploadFile = File(...),
+    threshold: int = 10,
+    db: AsyncSession = DBDep,
+) -> list[SimilarArtworkInfo]:
+    """Upload an image to find similar artworks via perceptual hash."""
+    data = await file.read()
+    try:
+        img = Image.open(io.BytesIO(data))
+        phash = str(imagehash.phash(img))
+    except Exception as e:
+        raise HTTPException(422, f"Cannot process image: {e}")
+
+    matches = await artwork_service.find_similar_by_phash(db, phash, threshold=threshold)
+    results: list[SimilarArtworkInfo] = []
+    seen: set[int] = set()
+    for img_record, dist in matches:
+        if img_record.artwork_id in seen:
+            continue
+        seen.add(img_record.artwork_id)
+        artwork = await artwork_service.get_artwork_by_id(db, img_record.artwork_id)
+        if artwork:
+            thumb = artwork.images[0].url_thumb if artwork.images else ""
+            results.append(SimilarArtworkInfo(
+                artwork_id=artwork.id,
+                distance=dist,
+                platform=artwork.platform,
+                pid=artwork.pid,
+                title=artwork.title,
+                thumb_url=thumb,
+            ))
+    return results
 
 
 # --- Artwork Sources ---

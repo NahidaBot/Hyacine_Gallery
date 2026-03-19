@@ -37,6 +37,7 @@ export default function PanelLayout({
   const nav = [
     { href: base, label: "Dashboard" },
     { href: `${base}/artworks`, label: "Artworks" },
+    { href: `${base}/image-search`, label: "Image Search" },
     { href: `${base}/tags`, label: "Tags" },
     { href: `${base}/tag-types`, label: "Tag Types" },
     { href: `${base}/bot`, label: "Bot Settings" },

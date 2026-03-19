@@ -7,6 +7,7 @@ import type {
   BotPostLogListResponse,
   BotSetting,
   ImportResponse,
+  SimilarArtworkInfo,
   Tag,
   TagListResponse,
   TagType,
@@ -132,6 +133,29 @@ export async function adminMergeArtwork(
     method: "POST",
     body: JSON.stringify({ source_artwork_id: sourceArtworkId }),
   });
+}
+
+// ── Image Search ──
+
+export async function adminSearchByImage(
+  file: File,
+  threshold = 10,
+): Promise<SimilarArtworkInfo[]> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(
+    `${API_BASE}/api/admin/artworks/search-by-image?threshold=${threshold}`,
+    {
+      method: "POST",
+      headers: { "X-Admin-Token": getToken() },
+      body: formData,
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<SimilarArtworkInfo[]>;
 }
 
 // ── Tags ──
