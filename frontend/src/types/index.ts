@@ -91,3 +91,14 @@ export interface BotSetting {
   value: string;
   description: string;
 }
+
+// ── Tag Types ──
+
+export interface TagType {
+  id: number;
+  name: string;
+  label: string;
+  color: string;
+  sort_order: number;
+  tag_count: number;
+}

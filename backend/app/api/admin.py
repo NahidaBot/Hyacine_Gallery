@@ -11,7 +11,7 @@ from app.schemas.artwork import (
     ArtworkResponse,
     ArtworkUpdate,
 )
-from app.schemas.tag import TagCreate, TagResponse, TagUpdate
+from app.schemas.tag import TagCreate, TagResponse, TagTypeCreate, TagTypeResponse, TagTypeUpdate, TagUpdate
 from app.services import artwork_service, storage_service, tag_service
 
 router = APIRouter(dependencies=[AdminDep])
@@ -83,7 +83,8 @@ async def import_artwork(
 
     # Download, compress, and store images (background-tolerant, logs errors per image)
     await storage_service.download_and_store_images(db, artwork)
-    await db.refresh(artwork, attribute_names=["images"])
+    await db.refresh(artwork)
+    await db.refresh(artwork, attribute_names=["images", "tags"])
 
     return ArtworkResponse.model_validate(artwork)
 
@@ -124,4 +125,51 @@ async def delete_tag(tag_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
     deleted = await tag_service.delete_tag(db, tag_id)
     if not deleted:
         raise HTTPException(404, "Tag not found")
+    return {"status": "deleted"}
+
+
+# --- Tag Types ---
+
+
+@router.get("/tag-types", response_model=list[TagTypeResponse])
+async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
+    rows = await tag_service.get_tag_types(db)
+    return [
+        TagTypeResponse(
+            id=tt.id, name=tt.name, label=tt.label,
+            color=tt.color, sort_order=tt.sort_order, tag_count=count,
+        )
+        for tt, count in rows
+    ]
+
+
+@router.post("/tag-types", response_model=TagTypeResponse)
+async def create_tag_type(
+    data: TagTypeCreate, db: AsyncSession = DBDep
+) -> TagTypeResponse:
+    tt = await tag_service.create_tag_type(db, data)
+    return TagTypeResponse(
+        id=tt.id, name=tt.name, label=tt.label,
+        color=tt.color, sort_order=tt.sort_order, tag_count=0,
+    )
+
+
+@router.put("/tag-types/{tt_id}", response_model=TagTypeResponse)
+async def update_tag_type(
+    tt_id: int, data: TagTypeUpdate, db: AsyncSession = DBDep
+) -> TagTypeResponse:
+    tt = await tag_service.update_tag_type(db, tt_id, data)
+    if not tt:
+        raise HTTPException(404, "Tag type not found")
+    return TagTypeResponse(
+        id=tt.id, name=tt.name, label=tt.label,
+        color=tt.color, sort_order=tt.sort_order, tag_count=0,
+    )
+
+
+@router.delete("/tag-types/{tt_id}")
+async def delete_tag_type(tt_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
+    deleted = await tag_service.delete_tag_type(db, tt_id)
+    if not deleted:
+        raise HTTPException(404, "Tag type not found")
     return {"status": "deleted"}

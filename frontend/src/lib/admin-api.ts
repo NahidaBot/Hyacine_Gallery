@@ -7,6 +7,7 @@ import type {
   BotSetting,
   Tag,
   TagListResponse,
+  TagType,
 } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -179,6 +180,47 @@ export async function adminUpdateBotSettings(
   await adminFetch<unknown>("/api/admin/bot/settings", {
     method: "PUT",
     body: JSON.stringify({ settings }),
+  });
+}
+
+// ── Post Logs ──
+
+// ── Tag Types ──
+
+export async function adminFetchTagTypes(): Promise<TagType[]> {
+  return adminFetch<TagType[]>("/api/tags/types");
+}
+
+export async function adminCreateTagType(data: {
+  name: string;
+  label?: string;
+  color?: string;
+  sort_order?: number;
+}): Promise<TagType> {
+  return adminFetch<TagType>("/api/admin/tag-types", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminUpdateTagType(
+  id: number,
+  data: {
+    name?: string;
+    label?: string;
+    color?: string;
+    sort_order?: number;
+  },
+): Promise<TagType> {
+  return adminFetch<TagType>(`/api/admin/tag-types/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteTagType(id: number): Promise<void> {
+  await adminFetch<unknown>(`/api/admin/tag-types/${id}`, {
+    method: "DELETE",
   });
 }
 

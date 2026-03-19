@@ -1,4 +1,4 @@
-from app.models.artwork import Artwork, ArtworkImage, ArtworkTag, BotPostLog, Tag
+from app.models.artwork import Artwork, ArtworkImage, ArtworkTag, BotPostLog, Tag, TagType
 from app.models.bot import BotChannel, BotSetting
 
 __all__ = [
@@ -9,4 +9,5 @@ __all__ = [
     "BotPostLog",
     "BotSetting",
     "Tag",
+    "TagType",
 ]

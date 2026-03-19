@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import DBDep
 from app.schemas.artwork import ArtworkListResponse, ArtworkResponse
-from app.schemas.tag import TagListResponse, TagResponse
+from app.schemas.tag import TagListResponse, TagResponse, TagTypeResponse
 from app.services import artwork_service, tag_service
 
 router = APIRouter()
@@ -27,6 +27,19 @@ async def list_tags(
         for tag, count in tags
     ]
     return TagListResponse(data=data, total=len(data))
+
+
+@router.get("/types", response_model=list[TagTypeResponse])
+async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
+    """Public endpoint: list all available tag types."""
+    rows = await tag_service.get_tag_types(db)
+    return [
+        TagTypeResponse(
+            id=tt.id, name=tt.name, label=tt.label,
+            color=tt.color, sort_order=tt.sort_order, tag_count=count,
+        )
+        for tt, count in rows
+    ]
 
 
 @router.get("/{tag_name}", response_model=TagResponse)

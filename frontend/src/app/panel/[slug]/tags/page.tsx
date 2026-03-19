@@ -1,18 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { Tag } from "@/types";
+import type { Tag, TagType } from "@/types";
 import {
   adminCreateTag,
   adminDeleteTag,
   adminFetchTags,
+  adminFetchTagTypes,
   adminUpdateTag,
 } from "@/lib/admin-api";
 
-const TAG_TYPES = ["general", "character", "artist", "meta"];
+const COLOR_MAP: Record<string, string> = {
+  neutral: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
+  red: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  orange: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  yellow: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  green: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  teal: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  indigo: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  purple: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  pink: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400",
+};
+
+function TagTypeBadge({ type, tagTypes }: { type: string; tagTypes: TagType[] }) {
+  const tt = tagTypes.find((t) => t.name === type);
+  const color = tt?.color || "neutral";
+  const cls = COLOR_MAP[color] || COLOR_MAP.neutral;
+  return (
+    <span className={`rounded px-2 py-0.5 text-xs ${cls}`}>
+      {tt?.label || type}
+    </span>
+  );
+}
 
 export default function TagsPage() {
   const [tags, setTags] = useState<Tag[]>([]);
+  const [tagTypes, setTagTypes] = useState<TagType[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Create
@@ -28,8 +52,12 @@ export default function TagsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await adminFetchTags();
-      setTags(data.data);
+      const [tagsRes, typesRes] = await Promise.all([
+        adminFetchTags(),
+        adminFetchTagTypes(),
+      ]);
+      setTags(tagsRes.data);
+      setTagTypes(typesRes);
     } catch (err) {
       console.error(err);
     } finally {
@@ -108,9 +136,9 @@ export default function TagsPage() {
             onChange={(e) => setNewType(e.target.value)}
             className="rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           >
-            {TAG_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {tagTypes.map((t) => (
+              <option key={t.name} value={t.name}>
+                {t.label || t.name}
               </option>
             ))}
           </select>
@@ -167,26 +195,14 @@ export default function TagsPage() {
                         onChange={(e) => setEditType(e.target.value)}
                         className="rounded border border-blue-400 px-2 py-1 text-sm dark:bg-neutral-900"
                       >
-                        {TAG_TYPES.map((t) => (
+                        {tagTypes.map((t) => (
                           <option key={t} value={t}>
                             {t}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${
-                          tag.type === "character"
-                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                            : tag.type === "artist"
-                              ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                              : tag.type === "meta"
-                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-                                : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
-                        }`}
-                      >
-                        {tag.type}
-                      </span>
+                      <TagTypeBadge type={tag.type} tagTypes={tagTypes} />
                     )}
                   </td>
                   <td className="px-3 py-2 tabular-nums">

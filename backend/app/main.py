@@ -5,12 +5,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.api.images import router as images_router
 from app.api.router import api_router
+from app.database import async_session
+from app.services.tag_service import seed_default_tag_types
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Startup
+    # Seed default tag types on startup
+    async with async_session() as db:
+        await seed_default_tag_types(db)
     yield
     # Shutdown
 
@@ -30,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router, prefix="/api")
+app.include_router(images_router, prefix="/images", tags=["images"])
 
 
 @app.get("/health")

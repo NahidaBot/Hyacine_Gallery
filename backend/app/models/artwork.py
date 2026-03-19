@@ -67,12 +67,24 @@ class ArtworkImage(Base):
     artwork: Mapped["Artwork"] = relationship(back_populates="images")
 
 
+class TagType(Base):
+    __tablename__ = "tag_types"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    label: Mapped[str] = mapped_column(String(100), default="")
+    color: Mapped[str] = mapped_column(String(50), default="")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    tags: Mapped[list["Tag"]] = relationship(back_populates="tag_type")
+
+
 class Tag(Base):
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    type: Mapped[str] = mapped_column(String(50), default="general")
+    type: Mapped[str] = mapped_column(String(50), ForeignKey("tag_types.name"), default="general")
     alias_of_id: Mapped[int | None] = mapped_column(
         ForeignKey("tags.id", ondelete="SET NULL"), nullable=True
     )
@@ -81,6 +93,7 @@ class Tag(Base):
     )
 
     alias_of: Mapped["Tag | None"] = relationship(remote_side=[id])
+    tag_type: Mapped["TagType | None"] = relationship(back_populates="tags")
     artworks: Mapped[list["Artwork"]] = relationship(
         secondary="artwork_tags", back_populates="tags"
     )
