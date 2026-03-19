@@ -10,7 +10,7 @@ async def get_tags(
     *,
     type_filter: str | None = None,
 ) -> list[tuple[Tag, int]]:
-    """Return all tags with their artwork counts."""
+    """返回所有标签及其作品数量。"""
     count_sub = (
         select(ArtworkTag.tag_id, func.count().label("cnt"))
         .group_by(ArtworkTag.tag_id)
@@ -71,11 +71,11 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     return True
 
 
-# ── Tag Types ──
+# ── 标签类型 ──
 
 
 async def get_tag_types(db: AsyncSession) -> list[tuple[TagType, int]]:
-    """Return all tag types with their tag counts, ordered by sort_order."""
+    """返回所有标签类型及其标签数量，按 sort_order 排序。"""
     count_sub = (
         select(Tag.type, func.count().label("cnt"))
         .group_by(Tag.type)
@@ -126,7 +126,7 @@ async def delete_tag_type(db: AsyncSession, tt_id: int) -> bool:
 
 
 async def seed_default_tag_types(db: AsyncSession) -> None:
-    """Insert default tag types if the table is empty."""
+    """如果表为空，插入默认标签类型。"""
     result = await db.execute(select(func.count()).select_from(TagType))
     if result.scalar_one() > 0:
         return

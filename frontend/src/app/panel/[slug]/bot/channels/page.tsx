@@ -10,10 +10,10 @@ import {
 import type { BotChannel } from "@/types";
 
 const CONDITION_FIELDS = [
-  { key: "is_ai", label: "AI artwork", type: "bool" as const },
-  { key: "is_nsfw", label: "NSFW artwork", type: "bool" as const },
-  { key: "platform", label: "Platform equals", type: "text" as const },
-  { key: "tags_any", label: "Has any tag (comma-separated)", type: "tags" as const },
+  { key: "is_ai", label: "AI 作品", type: "bool" as const },
+  { key: "is_nsfw", label: "NSFW 作品", type: "bool" as const },
+  { key: "platform", label: "平台等于", type: "text" as const },
+  { key: "tags_any", label: "包含任一标签（逗号分隔）", type: "tags" as const },
 ];
 
 export default function BotChannelsPage() {
@@ -21,14 +21,14 @@ export default function BotChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Create form
+  // 创建表单
   const [newChannelId, setNewChannelId] = useState("");
   const [newName, setNewName] = useState("");
   const [newIsDefault, setNewIsDefault] = useState(false);
   const [newPriority, setNewPriority] = useState(0);
   const [newConditions, setNewConditions] = useState<Record<string, unknown>>({});
 
-  // Edit state
+  // 编辑状态
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<{
     channel_id: string;
@@ -84,7 +84,7 @@ export default function BotChannelsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this channel?")) return;
+    if (!confirm("确认删除此频道？")) return;
     try {
       await adminDeleteBotChannel(id);
       await load();
@@ -116,23 +116,23 @@ export default function BotChannelsPage() {
     }
   };
 
-  if (loading) return <p className="text-neutral-500">Loading...</p>;
+  if (loading) return <p className="text-neutral-500">加载中...</p>;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Bot Channels</h1>
+      <h1 className="mb-6 text-2xl font-bold">Bot 频道</h1>
       <p className="mb-4 text-sm text-neutral-500">
-        Configure channel routing rules. Channels are evaluated by priority (lower = higher priority). First matching condition wins; default channel is used as fallback.
+        配置频道路由规则。按优先级评估（数值越小优先级越高），第一个匹配的条件生效；默认频道作为兜底。
       </p>
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-      {/* Create form */}
+      {/* 创建表单 */}
       <div className="mb-6 rounded border border-neutral-200 p-4 dark:border-neutral-700">
-        <h2 className="mb-3 text-sm font-semibold">Add Channel</h2>
+        <h2 className="mb-3 text-sm font-semibold">添加频道</h2>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs text-neutral-500">Channel ID</label>
+            <label className="block text-xs text-neutral-500">频道 ID</label>
             <input
               type="text"
               value={newChannelId}
@@ -142,17 +142,17 @@ export default function BotChannelsPage() {
             />
           </div>
           <div>
-            <label className="block text-xs text-neutral-500">Name</label>
+            <label className="block text-xs text-neutral-500">名称</label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Display name"
+              placeholder="显示名称"
               className="w-full rounded border border-neutral-300 px-2 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>
           <div>
-            <label className="block text-xs text-neutral-500">Priority</label>
+            <label className="block text-xs text-neutral-500">优先级</label>
             <input
               type="number"
               value={newPriority}
@@ -167,7 +167,7 @@ export default function BotChannelsPage() {
                 checked={newIsDefault}
                 onChange={(e) => setNewIsDefault(e.target.checked)}
               />
-              Default channel
+              默认频道
             </label>
           </div>
         </div>
@@ -180,21 +180,21 @@ export default function BotChannelsPage() {
           onClick={handleCreate}
           className="mt-3 rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
         >
-          Add
+          添加
         </button>
       </div>
 
-      {/* Channel list */}
+      {/* 频道列表 */}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-neutral-200 text-left dark:border-neutral-700">
-            <th className="pb-2">Priority</th>
-            <th className="pb-2">Channel</th>
-            <th className="pb-2">Name</th>
-            <th className="pb-2">Conditions</th>
-            <th className="pb-2">Default</th>
-            <th className="pb-2">Enabled</th>
-            <th className="pb-2">Actions</th>
+            <th className="pb-2">优先级</th>
+            <th className="pb-2">频道</th>
+            <th className="pb-2">名称</th>
+            <th className="pb-2">条件</th>
+            <th className="pb-2">默认</th>
+            <th className="pb-2">启用</th>
+            <th className="pb-2">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -257,13 +257,13 @@ export default function BotChannelsPage() {
                 </td>
                 <td className="py-2 space-x-2">
                   <button onClick={handleSaveEdit} className="text-blue-600 hover:underline">
-                    Save
+                    保存
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
                     className="text-neutral-500 hover:underline"
                   >
-                    Cancel
+                    取消
                   </button>
                 </td>
               </tr>
@@ -278,26 +278,26 @@ export default function BotChannelsPage() {
                 <td className="py-2 pr-2">
                   {ch.is_default && (
                     <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs text-green-800 dark:bg-green-900 dark:text-green-200">
-                      default
+                      默认
                     </span>
                   )}
                 </td>
                 <td className="py-2 pr-2">
                   {ch.enabled ? (
-                    <span className="text-green-600">on</span>
+                    <span className="text-green-600">开</span>
                   ) : (
-                    <span className="text-neutral-400">off</span>
+                    <span className="text-neutral-400">关</span>
                   )}
                 </td>
                 <td className="py-2 space-x-2">
                   <button onClick={() => startEdit(ch)} className="text-blue-600 hover:underline">
-                    Edit
+                    编辑
                   </button>
                   <button
                     onClick={() => handleDelete(ch.id)}
                     className="text-red-600 hover:underline"
                   >
-                    Delete
+                    删除
                   </button>
                 </td>
               </tr>
@@ -306,7 +306,7 @@ export default function BotChannelsPage() {
           {channels.length === 0 && (
             <tr>
               <td colSpan={7} className="py-4 text-center text-neutral-400">
-                No channels configured. Add one above.
+                暂无频道配置，请在上方添加。
               </td>
             </tr>
           )}
@@ -316,7 +316,7 @@ export default function BotChannelsPage() {
   );
 }
 
-// ── Condition Editor ──
+// ── 条件编辑器 ──
 
 function ConditionEditor({
   value,
@@ -340,7 +340,7 @@ function ConditionEditor({
   return (
     <div className={`space-y-1.5 ${className}`}>
       <p className="text-xs font-medium text-neutral-500">
-        Conditions (empty = match all)
+        条件（留空 = 匹配所有）
       </p>
       {CONDITION_FIELDS.map((f) => (
         <div key={f.key} className="flex items-center gap-2 text-xs">
@@ -400,7 +400,7 @@ function ConditionEditor({
   );
 }
 
-// ── Condition display ──
+// ── 条件展示 ──
 
 function ConditionBadges({
   conditions,
@@ -409,7 +409,7 @@ function ConditionBadges({
 }) {
   const entries = Object.entries(conditions ?? {});
   if (entries.length === 0) {
-    return <span className="text-xs text-neutral-400">match all</span>;
+    return <span className="text-xs text-neutral-400">匹配所有</span>;
   }
   return (
     <div className="flex flex-wrap gap-1">

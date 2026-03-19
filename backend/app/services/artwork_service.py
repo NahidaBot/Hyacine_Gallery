@@ -56,7 +56,7 @@ async def get_artwork_by_id(db: AsyncSession, artwork_id: int) -> Artwork | None
 
 
 async def get_artwork_by_pid(db: AsyncSession, platform: str, pid: str) -> Artwork | None:
-    """Find artwork via artwork_sources table."""
+    """通过 artwork_sources 表查找作品。"""
     source = await get_source_by_pid(db, platform, pid)
     if source:
         return await get_artwork_by_id(db, source.artwork_id)
@@ -70,7 +70,7 @@ async def get_random_artwork(db: AsyncSession) -> Artwork | None:
 
 
 async def _get_or_create_tags(db: AsyncSession, tag_names: list[str]) -> list[Tag]:
-    """Resolve tag names to Tag objects, creating any that don't exist."""
+    """将标签名称解析为 Tag 对象，不存在的自动创建。"""
     seen: set[str] = set()
     unique_names: list[str] = []
     for raw in tag_names:
@@ -164,7 +164,7 @@ async def delete_artwork(db: AsyncSession, artwork_id: int) -> bool:
 
 
 async def delete_artwork_image(db: AsyncSession, artwork_id: int, image_id: int) -> bool:
-    """Delete a single image from an artwork and reindex remaining pages."""
+    """从作品中删除单张图片并重新排序剩余页面。"""
     artwork = await get_artwork_by_id(db, artwork_id)
     if not artwork:
         return False
@@ -188,7 +188,7 @@ async def delete_artwork_image(db: AsyncSession, artwork_id: int, image_id: int)
     return True
 
 
-# ── Source management ────────────────────────────────────────────
+# ── 来源管理 ────────────────────────────────────────────────────
 
 
 async def get_source_by_pid(db: AsyncSession, platform: str, pid: str) -> ArtworkSource | None:
@@ -207,7 +207,7 @@ async def add_source(
     source_url: str,
     raw_info: str = "{}",
 ) -> ArtworkSource:
-    """Add a non-primary source to an existing artwork."""
+    """为已有作品添加非主要来源。"""
     source = ArtworkSource(
         artwork_id=artwork_id,
         platform=platform,
@@ -223,7 +223,7 @@ async def add_source(
 
 
 async def delete_source(db: AsyncSession, artwork_id: int, source_id: int) -> bool:
-    """Delete a non-primary source."""
+    """删除非主要来源。"""
     result = await db.execute(
         select(ArtworkSource).where(
             ArtworkSource.id == source_id,
@@ -240,52 +240,57 @@ async def delete_source(db: AsyncSession, artwork_id: int, source_id: int) -> bo
 
 
 async def merge_artworks(db: AsyncSession, target_id: int, source_id: int) -> Artwork | None:
-    """Merge source artwork into target artwork.
+    """将源作品合并到目标作品。
 
-    - Moves all sources from source → target
-    - Merges tags (union)
-    - Moves post_logs from source → target
-    - Deletes source artwork
-    - Returns updated target
+    - 将所有来源从源作品迁移到目标作品
+    - 合并标签（取并集）
+    - 将发布日志从源作品迁移到目标作品
+    - 删除源作品
+    - 返回更新后的目标作品
     """
     target = await get_artwork_by_id(db, target_id)
     source = await get_artwork_by_id(db, source_id)
     if not target or not source:
         return None
 
-    # Move sources
+    # 迁移来源
     await db.execute(
         update(ArtworkSource)
         .where(ArtworkSource.artwork_id == source_id)
         .values(artwork_id=target_id, is_primary=False)
     )
 
-    # Merge tags (union)
+    # 合并标签（取并集）
     target_tag_names = {t.name for t in target.tags}
     new_tag_names = [t.name for t in source.tags if t.name not in target_tag_names]
     if new_tag_names:
         extra_tags = await _get_or_create_tags(db, new_tag_names)
         target.tags = list(target.tags) + extra_tags
 
-    # Move post_logs
+    # 迁移发布日志
     await db.execute(
         update(BotPostLog)
         .where(BotPostLog.artwork_id == source_id)
         .values(artwork_id=target_id)
     )
 
-    # Delete source artwork (images cascade)
+    # 刷新 SQL UPDATE，然后使 ORM 缓存失效，避免 delete-orphan
+    # 级联删除已迁移到目标作品的来源和发布日志
+    await db.flush()
+    db.expire(source)
+
+    # 删除源作品（图片级联删除，来源和发布日志已迁移）
     await db.delete(source)
     await db.commit()
 
     return await get_artwork_by_id(db, target_id)
 
 
-# ── pHash similarity search ─────────────────────────────────────
+# ── pHash 相似度搜索 ────────────────────────────────────────────
 
 
 def _hamming_distance(h1: str, h2: str) -> int:
-    """Compute hamming distance between two hex hash strings."""
+    """计算两个十六进制哈希字符串之间的汉明距离。"""
     i1 = int(h1, 16)
     i2 = int(h2, 16)
     return bin(i1 ^ i2).count("1")
@@ -294,12 +299,12 @@ def _hamming_distance(h1: str, h2: str) -> int:
 async def find_similar_by_phash(
     db: AsyncSession, phash: str, threshold: int = 8
 ) -> list[tuple[ArtworkImage, int]]:
-    """Find artwork images with similar pHash. Returns (image, distance) pairs."""
+    """查找具有相似 pHash 的作品图片。返回 (image, distance) 对。"""
     if not phash:
         return []
 
-    # Load all non-empty phashes and filter in Python
-    # (SQLite doesn't support bitwise operations efficiently)
+    # 加载所有非空 pHash 并在 Python 中过滤
+    # （SQLite 不能高效支持位运算）
     result = await db.execute(
         select(ArtworkImage).where(ArtworkImage.phash != "")
     )

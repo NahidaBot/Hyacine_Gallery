@@ -13,8 +13,7 @@ def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
     app.add_handler(CommandHandler("post", post_command))
     app.add_handler(CommandHandler("import", import_command))
 
-    # Listen for channel post notifications in the comment group (from user 777000)
-    # to automatically reply with original (uncompressed) images
+    # 监听评论群中频道帖子通知（来自系统用户 777000），自动回复原图（无压缩）
     app.add_handler(
         MessageHandler(
             filters.FORWARDED & filters.PHOTO & filters.User(TELEGRAM_SYSTEM_USER_ID),

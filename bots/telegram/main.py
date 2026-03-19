@@ -1,4 +1,4 @@
-"""Telegram bot worker — independent process that communicates with the backend via HTTP API."""
+"""Telegram bot 工作进程 — 通过 HTTP API 与后端通信的独立进程。"""
 
 import logging
 
@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 
 
 async def refresh_bot_settings(context) -> None:  # type: ignore[no-untyped-def]
-    """Periodic job: fetch bot settings from backend and cache in bot_data."""
+    """定时任务：从后端获取 bot 设置并缓存到 bot_data。"""
     client: GalleryClient = context.bot_data["gallery_client"]
     try:
         settings = await client.get_bot_settings()
         context.bot_data["bot_settings"] = settings
-        logger.debug("Refreshed bot settings: %s", settings)
+        logger.debug("已刷新 bot 设置：%s", settings)
     except Exception:
-        logger.warning("Failed to refresh bot settings from backend", exc_info=True)
+        logger.warning("从后端刷新 bot 设置失败", exc_info=True)
 
 
 def main() -> None:
     if not bot_settings.telegram_bot_token:
-        logger.error("TELEGRAM_BOT_TOKEN is not set")
+        logger.error("未设置 TELEGRAM_BOT_TOKEN")
         return
 
     gallery_client = GalleryClient(
@@ -43,10 +43,10 @@ def main() -> None:
 
     register_handlers(app)
 
-    # Refresh bot settings from backend every 60 seconds
+    # 每 60 秒从后端刷新 bot 设置
     app.job_queue.run_repeating(refresh_bot_settings, interval=60, first=5)  # type: ignore[union-attr]
 
-    logger.info("Telegram bot worker started")
+    logger.info("Telegram bot 工作进程已启动")
     app.run_polling()
 
 

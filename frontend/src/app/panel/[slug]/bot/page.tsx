@@ -10,14 +10,14 @@ import type { BotSetting } from "@/types";
 const KNOWN_KEYS = [
   {
     key: "notification_interval",
-    label: "Notification Interval (seconds)",
-    description: "Anti-spam: disable notifications if posting within this interval",
+    label: "通知间隔（秒）",
+    description: "防刷屏：在此间隔内发布时禁用通知",
     default: "600",
   },
   {
     key: "message_tail_text",
-    label: "Message Tail Text",
-    description: "Text appended to every channel post caption",
+    label: "消息尾部文本",
+    description: "附加到每条频道帖子末尾的文本",
     default: "",
   },
 ];
@@ -37,7 +37,7 @@ export default function BotSettingsPage() {
       setSettings(data);
       const map: Record<string, string> = {};
       for (const s of data) map[s.key] = s.value;
-      // Fill in defaults for known keys not yet in DB
+      // 为数据库中尚不存在的已知键填充默认值
       for (const k of KNOWN_KEYS) {
         if (!(k.key in map)) map[k.key] = k.default;
       }
@@ -59,7 +59,7 @@ export default function BotSettingsPage() {
     setSuccess("");
     try {
       await adminUpdateBotSettings(values);
-      setSuccess("Settings saved.");
+      setSuccess("设置已保存。");
       await load();
     } catch (e) {
       setError(String(e));
@@ -68,16 +68,16 @@ export default function BotSettingsPage() {
     }
   };
 
-  if (loading) return <p className="text-neutral-500">Loading...</p>;
+  if (loading) return <p className="text-neutral-500">加载中...</p>;
 
-  // Merge known keys with any extra keys from DB
+  // 合并已知键与数据库中的额外键
   const extraKeys = Object.keys(values).filter(
     (k) => !KNOWN_KEYS.some((kk) => kk.key === k),
   );
 
   return (
     <div className="max-w-2xl">
-      <h1 className="mb-6 text-2xl font-bold">Bot Settings</h1>
+      <h1 className="mb-6 text-2xl font-bold">Bot 设置</h1>
 
       {error && (
         <p className="mb-4 text-sm text-red-600">{error}</p>
@@ -122,7 +122,7 @@ export default function BotSettingsPage() {
         disabled={saving}
         className="mt-6 rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
       >
-        {saving ? "Saving..." : "Save Settings"}
+        {saving ? "保存中..." : "保存设置"}
       </button>
     </div>
   );

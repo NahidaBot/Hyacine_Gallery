@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 
-// Check token synchronously via useSyncExternalStore to avoid lint issues
+// 通过 useSyncExternalStore 同步检查 token，避免 lint 问题
 function useTokenReady(): boolean {
   return useSyncExternalStore(
     () => () => {},
@@ -12,7 +12,7 @@ function useTokenReady(): boolean {
       if (typeof window === "undefined") return false;
       const stored = localStorage.getItem("admin_token");
       if (!stored) {
-        const token = prompt("Enter admin token:");
+        const token = prompt("请输入管理员令牌：");
         if (token) localStorage.setItem("admin_token", token);
       }
       return true;
@@ -35,21 +35,21 @@ export default function PanelLayout({
   if (!ready) return null;
 
   const nav = [
-    { href: base, label: "Dashboard" },
-    { href: `${base}/artworks`, label: "Artworks" },
-    { href: `${base}/image-search`, label: "Image Search" },
-    { href: `${base}/tags`, label: "Tags" },
-    { href: `${base}/tag-types`, label: "Tag Types" },
-    { href: `${base}/bot`, label: "Bot Settings" },
-    { href: `${base}/bot/channels`, label: "Bot Channels" },
-    { href: `${base}/bot/logs`, label: "Post Logs" },
+    { href: base, label: "仪表盘" },
+    { href: `${base}/artworks`, label: "作品管理" },
+    { href: `${base}/image-search`, label: "以图搜图" },
+    { href: `${base}/tags`, label: "标签管理" },
+    { href: `${base}/tag-types`, label: "标签类型" },
+    { href: `${base}/bot`, label: "Bot 设置" },
+    { href: `${base}/bot/channels`, label: "Bot 频道" },
+    { href: `${base}/bot/logs`, label: "发布记录" },
   ];
 
   return (
     <div className="flex min-h-[calc(100vh-65px)]">
       <aside className="w-48 shrink-0 border-r border-neutral-200 p-4 dark:border-neutral-800">
         <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-neutral-400">
-          Admin
+          管理面板
         </h2>
         <nav className="flex flex-col gap-1">
           {nav.map((item) => {
@@ -84,13 +84,13 @@ export default function PanelLayout({
           <button
             onClick={() => {
               localStorage.removeItem("admin_token");
-              const token = prompt("Enter admin token:");
+              const token = prompt("请输入管理员令牌：");
               if (token) localStorage.setItem("admin_token", token);
               window.location.reload();
             }}
             className="text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
           >
-            Change token
+            更换令牌
           </button>
         </div>
       </aside>

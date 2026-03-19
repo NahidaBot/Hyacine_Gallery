@@ -24,19 +24,19 @@ export default function ArtworkEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Form state
+  // 表单状态
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [isNsfw, setIsNsfw] = useState(false);
   const [isAi, setIsAi] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
 
-  // Add source
+  // 添加来源
   const [showAddSource, setShowAddSource] = useState(false);
   const [sourceUrl, setSourceUrl] = useState("");
   const [addingSource, setAddingSource] = useState(false);
 
-  // Merge
+  // 合并
   const [showMerge, setShowMerge] = useState(false);
   const [mergeId, setMergeId] = useState("");
   const [merging, setMerging] = useState(false);
@@ -87,7 +87,7 @@ export default function ArtworkEditPage() {
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete artwork #${artworkId}? This cannot be undone.`))
+    if (!confirm(`确认删除作品 #${artworkId}？此操作不可撤销。`))
       return;
     try {
       await adminDeleteArtwork(artworkId);
@@ -113,7 +113,7 @@ export default function ArtworkEditPage() {
   }
 
   async function handleDeleteSource(sourceId: number) {
-    if (!confirm("Remove this source?")) return;
+    if (!confirm("确认移除此来源？")) return;
     try {
       await adminDeleteSource(artworkId, sourceId);
       await load();
@@ -125,7 +125,7 @@ export default function ArtworkEditPage() {
   async function handleMerge() {
     const targetId = Number(mergeId);
     if (!targetId || targetId === artworkId) return;
-    if (!confirm(`Merge artwork #${targetId} into this artwork? #${targetId} will be deleted.`))
+    if (!confirm(`将作品 #${targetId} 合并到当前作品？#${targetId} 将被删除。`))
       return;
     setMerging(true);
     try {
@@ -141,9 +141,9 @@ export default function ArtworkEditPage() {
   }
 
   if (loading)
-    return <p className="text-sm text-neutral-400">Loading...</p>;
+    return <p className="text-sm text-neutral-400">加载中...</p>;
   if (!artwork)
-    return <p className="text-sm text-red-500">{error || "Not found"}</p>;
+    return <p className="text-sm text-red-500">{error || "未找到"}</p>;
 
   const inputCls =
     "w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900";
@@ -152,17 +152,17 @@ export default function ArtworkEditPage() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">
-          Edit Artwork #{artwork.id}
+          编辑作品 #{artwork.id}
         </h1>
         <button
           onClick={handleDelete}
           className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
         >
-          Delete
+          删除
         </button>
       </div>
 
-      {/* Image preview */}
+      {/* 图片预览 */}
       <div className="mb-6 flex gap-2 overflow-x-auto">
         {artwork.images.map((img) => (
           <div key={img.id} className="group relative shrink-0">
@@ -174,14 +174,14 @@ export default function ArtworkEditPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img.url_thumb || img.url_original}
-                alt={`page ${img.page_index + 1}`}
+                alt={`第 ${img.page_index + 1} 页`}
                 className="h-32 rounded border border-neutral-200 object-cover dark:border-neutral-700"
               />
             </a>
             {artwork.images.length > 1 && (
               <button
                 onClick={async () => {
-                  if (!confirm(`Delete page ${img.page_index + 1}?`)) return;
+                  if (!confirm(`确认删除第 ${img.page_index + 1} 页？`)) return;
                   try {
                     await adminDeleteArtworkImage(artworkId, img.id);
                     await load();
@@ -190,7 +190,7 @@ export default function ArtworkEditPage() {
                   }
                 }}
                 className="absolute -right-1 -top-1 hidden size-5 items-center justify-center rounded-full bg-red-600 text-xs text-white hover:bg-red-700 group-hover:flex"
-                title={`Delete page ${img.page_index + 1}`}
+                title={`删除第 ${img.page_index + 1} 页`}
               >
                 x
               </button>
@@ -202,27 +202,27 @@ export default function ArtworkEditPage() {
         ))}
       </div>
 
-      {/* Sources */}
+      {/* 来源 */}
       <div className="mb-6 rounded border border-neutral-200 p-4 dark:border-neutral-800">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Sources</h3>
+          <h3 className="text-sm font-semibold">来源</h3>
           <div className="flex gap-2">
             <button
               onClick={() => setShowAddSource(!showAddSource)}
               className="text-xs text-blue-600 hover:underline"
             >
-              + Add source
+              + 添加来源
             </button>
             <button
               onClick={() => setShowMerge(!showMerge)}
               className="text-xs text-orange-600 hover:underline"
             >
-              Merge artwork
+              合并作品
             </button>
           </div>
         </div>
 
-        {/* Source list */}
+        {/* 来源列表 */}
         <div className="space-y-1">
           {artwork.sources?.map((s) => (
             <div
@@ -246,28 +246,28 @@ export default function ArtworkEditPage() {
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 hover:underline"
                 >
-                  link
+                  链接
                 </a>
               )}
               {s.is_primary && (
-                <span className="text-[10px] text-neutral-400">primary</span>
+                <span className="text-[10px] text-neutral-400">主要</span>
               )}
               {!s.is_primary && (
                 <button
                   onClick={() => handleDeleteSource(s.id)}
                   className="text-[10px] text-red-500 hover:underline"
                 >
-                  remove
+                  移除
                 </button>
               )}
             </div>
           ))}
           {(!artwork.sources || artwork.sources.length === 0) && (
-            <p className="text-xs text-neutral-400">No sources recorded.</p>
+            <p className="text-xs text-neutral-400">暂无来源记录。</p>
           )}
         </div>
 
-        {/* Add source form */}
+        {/* 添加来源表单 */}
         {showAddSource && (
           <div className="mt-3 flex gap-2">
             <input
@@ -282,19 +282,19 @@ export default function ArtworkEditPage() {
               disabled={addingSource}
               className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              {addingSource ? "..." : "Add"}
+              {addingSource ? "..." : "添加"}
             </button>
           </div>
         )}
 
-        {/* Merge form */}
+        {/* 合并表单 */}
         {showMerge && (
           <div className="mt-3 flex gap-2">
             <input
               type="number"
               value={mergeId}
               onChange={(e) => setMergeId(e.target.value)}
-              placeholder="Artwork ID to merge into this one"
+              placeholder="要合并的作品 ID"
               className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-800"
             />
             <button
@@ -302,16 +302,16 @@ export default function ArtworkEditPage() {
               disabled={merging}
               className="rounded bg-orange-600 px-3 py-1 text-xs font-medium text-white hover:bg-orange-700 disabled:opacity-50"
             >
-              {merging ? "..." : "Merge"}
+              {merging ? "..." : "合并"}
             </button>
           </div>
         )}
       </div>
 
-      {/* Edit form */}
+      {/* 编辑表单 */}
       <div className="space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Title</label>
+          <label className="mb-1 block text-sm font-medium">标题</label>
           <input
             type="text"
             value={title}
@@ -320,7 +320,7 @@ export default function ArtworkEditPage() {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Author</label>
+          <label className="mb-1 block text-sm font-medium">作者</label>
           <input
             type="text"
             value={author}
@@ -330,7 +330,7 @@ export default function ArtworkEditPage() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">
-            Tags (comma separated)
+            标签（逗号分隔）
           </label>
           <input
             type="text"
@@ -354,7 +354,7 @@ export default function ArtworkEditPage() {
               checked={isAi}
               onChange={(e) => setIsAi(e.target.checked)}
             />
-            AI Generated
+            AI 生成
           </label>
         </div>
 
@@ -366,13 +366,13 @@ export default function ArtworkEditPage() {
             disabled={saving}
             className="rounded bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? "保存中..." : "保存"}
           </button>
           <button
             onClick={() => router.push(`${base}/artworks`)}
             className="rounded border border-neutral-300 px-6 py-2 text-sm hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
           >
-            Back
+            返回
           </button>
         </div>
       </div>

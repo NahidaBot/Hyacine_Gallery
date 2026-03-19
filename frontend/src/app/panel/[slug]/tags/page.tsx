@@ -39,12 +39,12 @@ export default function TagsPage() {
   const [tagTypes, setTagTypes] = useState<TagType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Create
+  // 创建
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("general");
   const [creating, setCreating] = useState(false);
 
-  // Inline edit
+  // 行内编辑
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState("general");
@@ -103,7 +103,7 @@ export default function TagsPage() {
   }
 
   async function handleDelete(id: number, name: string) {
-    if (!confirm(`Delete tag "${name}"?`)) return;
+    if (!confirm(`确认删除标签"${name}"？`)) return;
     try {
       await adminDeleteTag(id);
       await load();
@@ -114,23 +114,23 @@ export default function TagsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Tags</h1>
+      <h1 className="mb-6 text-2xl font-bold">标签管理</h1>
 
-      {/* Create form */}
+      {/* 创建表单 */}
       <div className="mb-6 flex items-end gap-2">
         <div className="flex-1">
-          <label className="mb-1 block text-sm font-medium">New Tag</label>
+          <label className="mb-1 block text-sm font-medium">新标签</label>
           <input
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            placeholder="tag name"
+            placeholder="标签名称"
             className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Type</label>
+          <label className="mb-1 block text-sm font-medium">类型</label>
           <select
             value={newType}
             onChange={(e) => setNewType(e.target.value)}
@@ -148,23 +148,23 @@ export default function TagsPage() {
           disabled={creating}
           className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {creating ? "..." : "Add"}
+          {creating ? "..." : "添加"}
         </button>
       </div>
 
-      {/* Tag list */}
+      {/* 标签列表 */}
       {loading ? (
-        <p className="text-sm text-neutral-400">Loading...</p>
+        <p className="text-sm text-neutral-400">加载中...</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-neutral-200 text-xs uppercase text-neutral-500 dark:border-neutral-700">
               <tr>
                 <th className="px-3 py-2">ID</th>
-                <th className="px-3 py-2">Name</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Artworks</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3 py-2">名称</th>
+                <th className="px-3 py-2">类型</th>
+                <th className="px-3 py-2">作品数</th>
+                <th className="px-3 py-2">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -215,13 +215,13 @@ export default function TagsPage() {
                           onClick={saveEdit}
                           className="text-blue-600 hover:underline"
                         >
-                          Save
+                          保存
                         </button>
                         <button
                           onClick={() => setEditId(null)}
                           className="text-neutral-400 hover:underline"
                         >
-                          Cancel
+                          取消
                         </button>
                       </div>
                     ) : (
@@ -230,13 +230,13 @@ export default function TagsPage() {
                           onClick={() => startEdit(tag)}
                           className="text-blue-600 hover:underline"
                         >
-                          Edit
+                          编辑
                         </button>
                         <button
                           onClick={() => handleDelete(tag.id, tag.name)}
                           className="text-red-500 hover:underline"
                         >
-                          Delete
+                          删除
                         </button>
                       </div>
                     )}
@@ -249,7 +249,7 @@ export default function TagsPage() {
                     colSpan={5}
                     className="px-3 py-8 text-center text-neutral-400"
                   >
-                    No tags yet.
+                    暂无标签。
                   </td>
                 </tr>
               )}

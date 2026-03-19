@@ -1,4 +1,4 @@
-"""Artwork-related command handlers: /random, /post, /import."""
+"""作品相关命令处理器：/random、/post、/import。"""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _is_admin(user_id: int | None) -> bool:
 
 
 def _get_setting(context: ContextTypes.DEFAULT_TYPE, key: str, default: str = "") -> str:
-    """Get a bot setting: check backend settings cache first, fall back to .env."""
+    """获取 bot 设置：优先检查后端缓存，回退到 .env 配置。"""
     remote = context.bot_data.get("bot_settings", {})
     if key in remote:
         return remote[key]
@@ -47,10 +47,10 @@ def _get_setting_int(context: ContextTypes.DEFAULT_TYPE, key: str, default: int)
 
 
 def format_caption(artwork: ArtworkData, tail_text: str = "") -> str:
-    """Build a Telegram-friendly caption for an artwork."""
+    """为作品生成 Telegram 格式的图片说明。"""
     parts: list[str] = []
 
-    title = artwork.title or "Untitled"
+    title = artwork.title or "无题"
     if artwork.author:
         parts.append(f"<b>{title}</b> by <b>{artwork.author}</b>")
     else:
@@ -88,7 +88,7 @@ async def send_artwork(
     update: Update,
     artwork: ArtworkData,
 ) -> None:
-    """Send artwork images + caption to the chat where the command was issued."""
+    """将作品图片和说明发送到触发命令的聊天中。"""
     message = update.effective_message
     if not message:
         return
@@ -97,7 +97,7 @@ async def send_artwork(
     urls = artwork.image_urls
 
     if not urls:
-        await message.reply_text(f"Artwork #{artwork.id} has no images.")
+        await message.reply_text(f"作品 #{artwork.id} 没有图片。")
         return
 
     spoiler = artwork.is_nsfw
@@ -127,7 +127,7 @@ async def post_to_channel(
     artwork: ArtworkData,
     channel_id: str,
 ) -> PostResult | None:
-    """Post artwork to a specific Telegram channel. Returns PostResult or None."""
+    """将作品发布到指定 Telegram 频道。成功返回 PostResult，否则返回 None。"""
     if not channel_id:
         return None
 
@@ -140,7 +140,7 @@ async def post_to_channel(
 
     spoiler = artwork.is_nsfw
 
-    # Anti-spam: disable notification if posting too frequently
+    # 防刷屏：发布过于频繁时静默通知
     notification_interval = _get_setting_int(
         context, "notification_interval", bot_settings.notification_interval
     )
@@ -179,7 +179,7 @@ async def post_to_channel(
 
     context.bot_data["last_post_time"] = now
 
-    # Cache channel message → artwork for original image delivery in comment group
+    # 缓存频道消息 → 作品映射，用于在评论群中发送原图
     context.bot_data.setdefault("channel_posts", {})[int(msg_id)] = artwork
 
     link = _message_link(channel_id, int(msg_id))
@@ -197,14 +197,14 @@ async def _resolve_target_channel(
     context: ContextTypes.DEFAULT_TYPE,
     artwork: ArtworkData,
 ) -> str:
-    """Determine which channel to post to via backend routing, with .env fallback."""
+    """通过后端路由确定发布目标频道，回退到 .env 配置。"""
     client = _get_client(context)
     try:
         ch = await client.resolve_channel(artwork.id)
         if ch:
             return ch.channel_id
     except Exception:
-        logger.warning("Failed to resolve channel from backend, using fallback", exc_info=True)
+        logger.warning("从后端解析频道失败，使用回退配置", exc_info=True)
     return bot_settings.telegram_channel
 
 
@@ -214,7 +214,7 @@ async def _log_post(
     result: PostResult,
     posted_by: str,
 ) -> None:
-    """Record the post to bot_post_logs via backend API."""
+    """通过后端 API 将发布记录写入 bot_post_logs。"""
     client = _get_client(context)
     try:
         await client.create_post_log(
@@ -225,19 +225,19 @@ async def _log_post(
             posted_by=posted_by,
         )
     except Exception:
-        logger.warning("Failed to record post log", exc_info=True)
+        logger.warning("记录发布日志失败", exc_info=True)
 
 
-# ── Command handlers ──────────────────────────────────────────────
+# ── 命令处理器 ──────────────────────────────────────────────────────
 
 
 async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /random — send a random artwork to the chat."""
+    """处理 /random — 随机发送一个作品到聊天中。"""
     client = _get_client(context)
     artwork = await client.get_random()
     if artwork is None:
         if update.message:
-            await update.message.reply_text("No artworks in the database yet.")
+            await update.message.reply_text("数据库中暂无作品。")
         return
 
     await send_artwork(update, artwork)
@@ -248,26 +248,26 @@ _TAG_RE = re.compile(r"#(\S+)")
 
 
 async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /post — unified command for import+post and post-existing.
+    """处理 /post — 统一的导入发布命令。
 
-    Usage:
-        /post <url> [#tag1 #tag2]         — crawl URL, save, and post to channel
-        /post <url> [#tag1] --no-post     — crawl URL and save only (alias for /import)
-        /post <id>                        — post existing artwork to channel
-        /post <id> --no-post              — preview existing artwork (send to chat)
+    用法：
+        /post <url> [#tag1 #tag2]         — 抓取 URL，保存并发布到频道
+        /post <url> [#tag1] --no-post     — 仅抓取并保存（不发布到频道）
+        /post <id>                        — 将已有作品发布到频道
+        /post <id> --no-post              — 预览已有作品（发送到当前聊天）
     """
     if not update.message or not update.effective_user:
         return
 
     if not _is_admin(update.effective_user.id):
-        await update.message.reply_text("Permission denied.")
+        await update.message.reply_text("权限不足。")
         return
 
     text = update.message.text or ""
     no_post = "--no-post" in text
     user_name = update.effective_user.username or str(update.effective_user.id)
 
-    # Try to detect if argument is a URL or an artwork ID
+    # 判断参数是 URL 还是作品 ID
     url_match = _URL_RE.search(text)
 
     if url_match:
@@ -284,39 +284,39 @@ async def _handle_post_url(
     no_post: bool,
     user_name: str,
 ) -> None:
-    """Import from URL and optionally post to channel."""
+    """从 URL 导入作品，可选发布到频道。"""
     assert update.message is not None
 
     tags = _TAG_RE.findall(text)
-    status_msg = await update.message.reply_text(f"Importing {url} ...")
+    status_msg = await update.message.reply_text(f"正在导入 {url} ...")
 
     client = _get_client(context)
     try:
         artwork = await client.import_artwork(url, tags=tags or None)
     except httpx.HTTPStatusError as e:
         error_detail = e.response.text[:200] if e.response else str(e)
-        await status_msg.edit_text(f"Import failed: {error_detail}")
+        await status_msg.edit_text(f"导入失败：{error_detail}")
         return
 
-    # Show the imported artwork in chat
+    # 在聊天中展示导入的作品
     await send_artwork(update, artwork)
 
     if no_post:
-        await status_msg.edit_text(f"Imported artwork #{artwork.id} ({artwork.platform}).")
+        await status_msg.edit_text(f"已导入作品 #{artwork.id}（{artwork.platform}）。")
         return
 
-    # Resolve target channel and post
+    # 解析目标频道并发布
     channel_id = await _resolve_target_channel(context, artwork)
     if not channel_id:
-        await status_msg.edit_text(f"Imported #{artwork.id}, but no channel configured.")
+        await status_msg.edit_text(f"已导入 #{artwork.id}，但未配置频道。")
         return
 
     result = await post_to_channel(context, artwork, channel_id)
     if result:
         await _log_post(context, artwork, result, posted_by=user_name)
-        await status_msg.edit_text(f"Imported #{artwork.id} and posted: {result.message_link}")
+        await status_msg.edit_text(f"已导入 #{artwork.id} 并发布：{result.message_link}")
     else:
-        await status_msg.edit_text(f"Imported #{artwork.id}, but channel post failed.")
+        await status_msg.edit_text(f"已导入 #{artwork.id}，但频道发布失败。")
 
 
 async def _handle_post_id(
@@ -325,76 +325,76 @@ async def _handle_post_id(
     no_post: bool,
     user_name: str,
 ) -> None:
-    """Post an existing artwork by ID."""
+    """通过 ID 发布已有作品。"""
     assert update.message is not None
 
     args = context.args or []
     if not args:
         await update.message.reply_text(
-            "Usage:\n"
-            "/post <url> [#tag1 #tag2] — import and post\n"
-            "/post <id> — post existing artwork"
+            "用法：\n"
+            "/post <url> [#tag1 #tag2] — 导入并发布\n"
+            "/post <id> — 发布已有作品"
         )
         return
 
     try:
         artwork_id = int(args[0])
     except ValueError:
-        await update.message.reply_text("Invalid artwork ID. Use a URL or numeric ID.")
+        await update.message.reply_text("无效的作品 ID，请使用 URL 或数字 ID。")
         return
 
     client = _get_client(context)
     artwork = await client.get_artwork(artwork_id)
     if artwork is None:
-        await update.message.reply_text(f"Artwork #{artwork_id} not found.")
+        await update.message.reply_text(f"未找到作品 #{artwork_id}。")
         return
 
     if no_post:
-        # Preview only
+        # 仅预览
         await send_artwork(update, artwork)
         return
 
     channel_id = await _resolve_target_channel(context, artwork)
     if not channel_id:
-        await update.message.reply_text("No channel configured.")
+        await update.message.reply_text("未配置频道。")
         return
 
     result = await post_to_channel(context, artwork, channel_id)
     if result:
         await _log_post(context, artwork, result, posted_by=user_name)
-        await update.message.reply_text(f"Posted: {result.message_link}")
+        await update.message.reply_text(f"已发布：{result.message_link}")
     else:
-        await update.message.reply_text("Failed to post (no images or channel error).")
+        await update.message.reply_text("发布失败（无图片或频道错误）。")
 
 
 async def import_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle /import <url> [#tag1 #tag2] — crawl URL and save artwork (no channel post).
+    """处理 /import <url> [#tag1 #tag2] — 抓取 URL 并保存作品（不发布到频道）。
 
-    This is an alias for `/post <url> --no-post`.
+    这是 `/post <url> --no-post` 的别名。
     """
     if not update.message or not update.effective_user:
         return
 
     if not _is_admin(update.effective_user.id):
-        await update.message.reply_text("Permission denied.")
+        await update.message.reply_text("权限不足。")
         return
 
     text = update.message.text or ""
     url_match = _URL_RE.search(text)
     if not url_match:
-        await update.message.reply_text("Usage: /import <url> [#tag1 #tag2]")
+        await update.message.reply_text("用法：/import <url> [#tag1 #tag2]")
         return
 
     tags = _TAG_RE.findall(text)
-    status_msg = await update.message.reply_text(f"Importing {url_match.group(0)} ...")
+    status_msg = await update.message.reply_text(f"正在导入 {url_match.group(0)} ...")
 
     client = _get_client(context)
     try:
         artwork = await client.import_artwork(url_match.group(0), tags=tags or None)
     except httpx.HTTPStatusError as e:
         error_detail = e.response.text[:200] if e.response else str(e)
-        await status_msg.edit_text(f"Import failed: {error_detail}")
+        await status_msg.edit_text(f"导入失败：{error_detail}")
         return
 
     await send_artwork(update, artwork)
-    await status_msg.edit_text(f"Imported artwork #{artwork.id} ({artwork.platform}).")
+    await status_msg.edit_text(f"已导入作品 #{artwork.id}（{artwork.platform}）。")

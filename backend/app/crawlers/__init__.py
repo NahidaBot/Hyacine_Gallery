@@ -1,4 +1,4 @@
-"""Crawler registry — dispatches URLs to the appropriate platform crawler."""
+"""爬虫注册表 — 将 URL 分发到对应的平台爬虫。"""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from app.crawlers.twitter import TwitterCrawler
 
 __all__ = ["BaseCrawler", "CrawlResult", "crawl"]
 
-# Ordered list: first match wins, GalleryDL is the fallback at the end
+# 有序列表：第一个匹配的爬虫生效，GalleryDL 作为兜底放在最后
 _CRAWLERS: list[BaseCrawler] = [
     PixivCrawler(),
     TwitterCrawler(),
@@ -20,8 +20,8 @@ _CRAWLERS: list[BaseCrawler] = [
 
 
 async def crawl(url: str) -> CrawlResult:
-    """Dispatch a URL to the first matching crawler and return the result."""
+    """将 URL 分发给第一个匹配的爬虫并返回结果。"""
     for crawler in _CRAWLERS:
         if crawler.match(url):
             return await crawler.fetch(url)
-    return CrawlResult(success=False, error="No crawler matched the URL")
+    return CrawlResult(success=False, error="没有匹配该 URL 的爬虫")

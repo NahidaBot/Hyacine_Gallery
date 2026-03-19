@@ -25,7 +25,7 @@ from app.services import artwork_service, storage_service, tag_service
 router = APIRouter(dependencies=[AdminDep])
 
 
-# --- Artworks ---
+# --- 作品管理 ---
 
 
 @router.post("/artworks", response_model=ArtworkResponse)
@@ -40,7 +40,7 @@ async def update_artwork(
 ) -> ArtworkResponse:
     artwork = await artwork_service.update_artwork(db, artwork_id, data)
     if not artwork:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
     return ArtworkResponse.model_validate(artwork)
 
 
@@ -48,7 +48,7 @@ async def update_artwork(
 async def delete_artwork(artwork_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
     deleted = await artwork_service.delete_artwork(db, artwork_id)
     if not deleted:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
     return {"status": "deleted"}
 
 
@@ -58,7 +58,7 @@ async def delete_artwork_image(
 ) -> dict[str, str]:
     deleted = await artwork_service.delete_artwork_image(db, artwork_id, image_id)
     if not deleted:
-        raise HTTPException(404, "Image not found")
+        raise HTTPException(404, "图片不存在")
     return {"status": "deleted"}
 
 
@@ -66,20 +66,20 @@ async def delete_artwork_image(
 async def import_artwork(
     data: ArtworkImportRequest, db: AsyncSession = DBDep
 ) -> ImportResponse:
-    """Crawl a URL, deduplicate via platform+pid and pHash, create or merge."""
+    """抓取 URL，通过 platform+pid 和 pHash 去重，创建或合并。"""
     result = await crawl(data.url)
     if not result.success:
-        raise HTTPException(422, f"Crawl failed: {result.error}")
+        raise HTTPException(422, f"抓取失败: {result.error}")
 
-    # Step 1: Same-platform dedup via artwork_sources
+    # 第一步：同平台通过 artwork_sources 去重
     existing = await artwork_service.get_artwork_by_pid(db, result.platform, result.pid)
     if existing:
         return ImportResponse(
             artwork=ArtworkResponse.model_validate(existing),
-            message="Already exists (same platform+pid).",
+            message="已存在（相同 platform+pid）。",
         )
 
-    # Step 2: Create artwork + download images (pHash computed during download)
+    # 第二步：创建作品 + 下载图片（下载时计算 pHash）
     all_tags = list(dict.fromkeys(result.tags + data.tags))
     create_data = ArtworkCreate(
         platform=result.platform,
@@ -99,15 +99,15 @@ async def import_artwork(
     await db.refresh(artwork)
     await db.refresh(artwork, attribute_names=["images", "tags", "sources"])
 
-    # Step 3: pHash cross-platform dedup
+    # 第三步：pHash 跨平台去重
     first_image = next((img for img in artwork.images if img.phash), None)
     if first_image and first_image.phash:
         matches = await artwork_service.find_similar_by_phash(db, first_image.phash)
-        # Filter out matches from the artwork we just created
+        # 过滤掉刚创建的作品的匹配结果
         matches = [(img, dist) for img, dist in matches if img.artwork_id != artwork.id]
 
         if matches:
-            # Group by artwork_id, pick closest match per artwork
+            # 按 artwork_id 分组，每个作品取最近的匹配
             seen_artwork_ids: set[int] = set()
             similar: list[SimilarArtworkInfo] = []
             for img, dist in matches:
@@ -127,12 +127,12 @@ async def import_artwork(
                     ))
 
             if similar and data.auto_merge:
-                # Auto-merge: keep the one with more pages
+                # 自动合并：保留页数更多的
                 target = similar[0]
                 target_artwork = await artwork_service.get_artwork_by_id(db, target.artwork_id)
                 if target_artwork:
                     if artwork.page_count <= target_artwork.page_count:
-                        # Merge new into existing (existing has more pages)
+                        # 将新作品合并到已有作品（已有作品页数更多）
                         merged = await artwork_service.merge_artworks(
                             db, target.artwork_id, artwork.id
                         )
@@ -140,10 +140,10 @@ async def import_artwork(
                             return ImportResponse(
                                 artwork=ArtworkResponse.model_validate(merged),
                                 merged=True,
-                                message=f"Auto-merged into artwork #{target.artwork_id} (pHash match, distance={target.distance}).",
+                                message=f"已自动合并到作品 #{target.artwork_id}（pHash 匹配，距离={target.distance}）。",
                             )
                     else:
-                        # Merge existing into new (new has more pages)
+                        # 将已有作品合并到新作品（新作品页数更多）
                         merged = await artwork_service.merge_artworks(
                             db, artwork.id, target.artwork_id
                         )
@@ -151,23 +151,23 @@ async def import_artwork(
                             return ImportResponse(
                                 artwork=ArtworkResponse.model_validate(merged),
                                 merged=True,
-                                message=f"Auto-merged artwork #{target.artwork_id} into new #{artwork.id} (more pages).",
+                                message=f"已将作品 #{target.artwork_id} 合并到新作品 #{artwork.id}（页数更多）。",
                             )
 
             if similar and not data.auto_merge:
                 return ImportResponse(
                     artwork=ArtworkResponse.model_validate(artwork),
                     similar=similar,
-                    message="Similar artworks found. Set auto_merge=true to merge automatically.",
+                    message="发现相似作品。设置 auto_merge=true 可自动合并。",
                 )
 
     return ImportResponse(
         artwork=ArtworkResponse.model_validate(artwork),
-        message="Created new artwork.",
+        message="已创建新作品。",
     )
 
 
-# --- Image Search (pHash) ---
+# --- 以图搜图 (pHash) ---
 
 
 @router.post("/artworks/search-by-image", response_model=list[SimilarArtworkInfo])
@@ -176,13 +176,13 @@ async def search_by_image(
     threshold: int = 10,
     db: AsyncSession = DBDep,
 ) -> list[SimilarArtworkInfo]:
-    """Upload an image to find similar artworks via perceptual hash."""
+    """上传图片，通过感知哈希查找相似作品。"""
     data = await file.read()
     try:
         img = Image.open(io.BytesIO(data))
         phash = str(imagehash.phash(img))
     except Exception as e:
-        raise HTTPException(422, f"Cannot process image: {e}")
+        raise HTTPException(422, f"无法处理图片: {e}")
 
     matches = await artwork_service.find_similar_by_phash(db, phash, threshold=threshold)
     results: list[SimilarArtworkInfo] = []
@@ -205,26 +205,26 @@ async def search_by_image(
     return results
 
 
-# --- Artwork Sources ---
+# --- 作品来源 ---
 
 
 @router.post("/artworks/{artwork_id}/sources", response_model=ArtworkSourceResponse)
 async def add_artwork_source(
     artwork_id: int, data: ArtworkAddSourceRequest, db: AsyncSession = DBDep
 ) -> ArtworkSourceResponse:
-    """Crawl a URL and add it as a source to an existing artwork."""
+    """抓取 URL 并作为来源添加到已有作品。"""
     artwork = await artwork_service.get_artwork_by_id(db, artwork_id)
     if not artwork:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
 
     result = await crawl(data.url)
     if not result.success:
-        raise HTTPException(422, f"Crawl failed: {result.error}")
+        raise HTTPException(422, f"抓取失败: {result.error}")
 
-    # Check if this source already exists
+    # 检查该来源是否已存在
     existing = await artwork_service.get_source_by_pid(db, result.platform, result.pid)
     if existing:
-        raise HTTPException(409, f"Source {result.platform}/{result.pid} already linked to artwork #{existing.artwork_id}")
+        raise HTTPException(409, f"来源 {result.platform}/{result.pid} 已关联到作品 #{existing.artwork_id}")
 
     source = await artwork_service.add_source(
         db, artwork_id, result.platform, result.pid, result.source_url,
@@ -239,7 +239,7 @@ async def delete_artwork_source(
 ) -> dict[str, str]:
     deleted = await artwork_service.delete_source(db, artwork_id, source_id)
     if not deleted:
-        raise HTTPException(404, "Source not found or is primary")
+        raise HTTPException(404, "来源不存在或为主要来源")
     return {"status": "deleted"}
 
 
@@ -247,16 +247,16 @@ async def delete_artwork_source(
 async def merge_artwork(
     artwork_id: int, data: ArtworkMergeRequest, db: AsyncSession = DBDep
 ) -> ArtworkResponse:
-    """Merge another artwork into this one."""
+    """将另一个作品合并到当前作品。"""
     if artwork_id == data.source_artwork_id:
-        raise HTTPException(400, "Cannot merge artwork into itself")
+        raise HTTPException(400, "不能将作品合并到自身")
     merged = await artwork_service.merge_artworks(db, artwork_id, data.source_artwork_id)
     if not merged:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
     return ArtworkResponse.model_validate(merged)
 
 
-# --- Tags ---
+# --- 标签管理 ---
 
 
 @router.post("/tags", response_model=TagResponse)
@@ -276,7 +276,7 @@ async def create_tag(data: TagCreate, db: AsyncSession = DBDep) -> TagResponse:
 async def update_tag(tag_id: int, data: TagUpdate, db: AsyncSession = DBDep) -> TagResponse:
     tag = await tag_service.update_tag(db, tag_id, data)
     if not tag:
-        raise HTTPException(404, "Tag not found")
+        raise HTTPException(404, "标签不存在")
     return TagResponse(
         id=tag.id,
         name=tag.name,
@@ -291,11 +291,11 @@ async def update_tag(tag_id: int, data: TagUpdate, db: AsyncSession = DBDep) -> 
 async def delete_tag(tag_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
     deleted = await tag_service.delete_tag(db, tag_id)
     if not deleted:
-        raise HTTPException(404, "Tag not found")
+        raise HTTPException(404, "标签不存在")
     return {"status": "deleted"}
 
 
-# --- Tag Types ---
+# --- 标签类型 ---
 
 
 @router.get("/tag-types", response_model=list[TagTypeResponse])
@@ -327,7 +327,7 @@ async def update_tag_type(
 ) -> TagTypeResponse:
     tt = await tag_service.update_tag_type(db, tt_id, data)
     if not tt:
-        raise HTTPException(404, "Tag type not found")
+        raise HTTPException(404, "标签类型不存在")
     return TagTypeResponse(
         id=tt.id, name=tt.name, label=tt.label,
         color=tt.color, sort_order=tt.sort_order, tag_count=0,
@@ -338,5 +338,5 @@ async def update_tag_type(
 async def delete_tag_type(tt_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
     deleted = await tag_service.delete_tag_type(db, tt_id)
     if not deleted:
-        raise HTTPException(404, "Tag type not found")
+        raise HTTPException(404, "标签类型不存在")
     return {"status": "deleted"}

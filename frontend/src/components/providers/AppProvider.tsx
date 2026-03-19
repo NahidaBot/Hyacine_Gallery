@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-// ── Types ──
+// ── 类型定义 ──
 
 type ThemeMode = "light" | "dark" | "system";
 type NsfwMode = "hide" | "show" | "only";
@@ -33,7 +33,7 @@ export function useApp() {
   return ctx;
 }
 
-// ── Provider ──
+// ── Provider 组件 ──
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>("system");
@@ -42,7 +42,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [columns, setColumnsState] = useState(5);
   const [mounted, setMounted] = useState(false);
 
-  // Load from localStorage on mount
+  // 挂载时从 localStorage 加载设置
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as ThemeMode | null;
     const savedNsfw = localStorage.getItem("nsfw_mode") as NsfwMode | null;
@@ -51,11 +51,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (savedTheme) setThemeState(savedTheme);
     if (savedNsfw) setNsfwModeState(savedNsfw);
     if (savedAi) setAiModeState(savedAi);
-    if (savedCols) setColumnsState(Number(savedCols));
+    if (savedCols) {
+      setColumnsState(Number(savedCols));
+    } else {
+      // 默认：移动端 2 列，桌面端 5 列
+      setColumnsState(window.innerWidth < 640 ? 2 : 5);
+    }
     setMounted(true);
   }, []);
 
-  // Apply dark class to <html>
+  // 在 <html> 上应用 dark 类
   useEffect(() => {
     if (!mounted) return;
 
@@ -68,7 +73,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else if (theme === "light") {
       applyDark(false);
     } else {
-      // system
+      // 跟随系统
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       applyDark(mq.matches);
       const handler = (e: MediaQueryListEvent) => applyDark(e.matches);

@@ -31,7 +31,7 @@ async def list_tags(
 
 @router.get("/types", response_model=list[TagTypeResponse])
 async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
-    """Public endpoint: list all available tag types."""
+    """公开接口：列出所有可用的标签类型。"""
     rows = await tag_service.get_tag_types(db)
     return [
         TagTypeResponse(
@@ -46,8 +46,8 @@ async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
 async def get_tag(tag_name: str, db: AsyncSession = DBDep) -> TagResponse:
     tag = await tag_service.get_tag_by_name(db, tag_name)
     if not tag:
-        raise HTTPException(404, "Tag not found")
-    # Get artwork count for this tag
+        raise HTTPException(404, "标签不存在")
+    # 获取该标签的作品数量
     tags_with_count = await tag_service.get_tags(db)
     count = next((c for t, c in tags_with_count if t.id == tag.id), 0)
     return TagResponse(

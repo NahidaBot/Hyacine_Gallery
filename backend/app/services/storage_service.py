@@ -1,11 +1,11 @@
-"""Image download, processing, and storage service.
+"""图片下载、处理和存储服务。
 
-Downloads images from source URLs, converts to WebP (configurable quality),
-generates thumbnails (configurable max edge), and stores to local filesystem or S3.
+下载来源 URL 的图片，转换为 WebP（可配置质量），
+生成缩略图（可配置最大边长），存储到本地文件系统或 S3。
 
-Storage layout:
-    <platform>/<pid>/original/<page_index>.webp   — WebP-compressed original
-    <platform>/<pid>/thumb/<page_index>.webp       — Thumbnail (long edge ≤ thumb_max_edge)
+存储布局:
+    <platform>/<pid>/original/<page_index>.webp   — WebP 压缩的原图
+    <platform>/<pid>/thumb/<page_index>.webp       — 缩略图（长边 ≤ thumb_max_edge）
 """
 
 from __future__ import annotations
@@ -25,11 +25,11 @@ from app.models.artwork import Artwork, ArtworkImage
 
 logger = logging.getLogger(__name__)
 
-# Reusable HTTP client for downloading images
+# 可复用的 HTTP 客户端，用于下载图片
 _http_client: httpx.AsyncClient | None = None
 
 
-# Domain → Referer mapping for hotlink-protected image CDNs
+# 域名 → Referer 映射，用于防盗链的图片 CDN
 _REFERER_MAP: dict[str, str] = {
     "i.pximg.net": "https://www.pixiv.net/",
     "pbs.twimg.com": "https://x.com/",
@@ -53,7 +53,7 @@ def _get_http_client() -> httpx.AsyncClient:
 
 
 def _download_headers(url: str) -> dict[str, str]:
-    """Build per-request headers (e.g. Referer) based on image URL domain."""
+    """根据图片 URL 域名构建请求头（如 Referer）。"""
     host = urlparse(url).hostname or ""
     headers: dict[str, str] = {}
     for domain, referer in _REFERER_MAP.items():
@@ -64,7 +64,7 @@ def _download_headers(url: str) -> dict[str, str]:
 
 
 def _storage_key(platform: str, pid: str, variant: str, page_index: int) -> str:
-    """Build a storage key like 'pixiv/12345/original/0.webp'."""
+    """构建存储键，如 'pixiv/12345/original/0.webp'。"""
     return f"{platform}/{pid}/{variant}/{page_index}.webp"
 
 
@@ -74,7 +74,7 @@ def _process_image(
     quality: int = settings.webp_quality,
     max_edge: int | None = None,
 ) -> tuple[bytes, int, int]:
-    """Convert image data to WebP, optionally resize. Returns (webp_bytes, width, height)."""
+    """将图片数据转换为 WebP，可选缩放。返回 (webp_bytes, width, height)。"""
     img = Image.open(io.BytesIO(data))
     img = img.convert("RGBA") if img.mode in ("RGBA", "PA", "P") else img.convert("RGB")
 
@@ -92,11 +92,11 @@ def _process_image(
     return buf.getvalue(), final_w, final_h
 
 
-# ── Storage backends ─────────────────────────────────────────────
+# ── 存储后端 ─────────────────────────────────────────────────────
 
 
 async def _save_local(key: str, data: bytes) -> tuple[str, str]:
-    """Save bytes to local filesystem. Returns (file_path, public_url)."""
+    """保存字节到本地文件系统。返回 (file_path, public_url)。"""
     path = Path(settings.storage_local_path) / key
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
@@ -105,12 +105,12 @@ async def _save_local(key: str, data: bytes) -> tuple[str, str]:
 
 
 async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
-    """Upload bytes to S3-compatible storage. Returns (s3_key, public_url)."""
+    """上传字节到 S3 兼容存储。返回 (s3_key, public_url)。"""
     try:
         import boto3
         from botocore.config import Config as BotoConfig
     except ImportError as e:
-        raise RuntimeError("boto3 is required for S3 storage: pip install boto3") from e
+        raise RuntimeError("S3 存储需要 boto3: pip install boto3") from e
 
     s3 = boto3.client(
         "s3",
@@ -135,26 +135,26 @@ async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
 
 
 async def _save(key: str, data: bytes) -> tuple[str, str]:
-    """Save to configured backend. Returns (storage_path, public_url)."""
+    """保存到已配置的后端。返回 (storage_path, public_url)。"""
     if settings.storage_backend == "s3":
         return await _save_s3(key, data)
     return await _save_local(key, data)
 
 
-# ── Public API ───────────────────────────────────────────────────
+# ── 公开 API ─────────────────────────────────────────────────────
 
 
 async def download_and_store_images(
     db: AsyncSession,
     artwork: Artwork,
 ) -> None:
-    """Download all images for an artwork, process them, and update DB records.
+    """下载作品的所有图片，处理后更新数据库记录。
 
-    For each ArtworkImage:
-      - Downloads the original URL
-      - Converts to WebP (80% quality) → stored as 'original'
-      - Generates thumbnail (long edge ≤ thumb_max_edge) → stored as 'thumb'
-      - Updates width, height, file_size, file_name, storage_path, url_thumb
+    对每个 ArtworkImage:
+      - 下载原始 URL
+      - 转换为 WebP（80% 质量）→ 存储为 'original'
+      - 生成缩略图（长边 ≤ thumb_max_edge）→ 存储为 'thumb'
+      - 更新 width、height、file_size、file_name、storage_path、url_thumb
     """
     client = _get_http_client()
     total = len(artwork.images)
@@ -163,7 +163,7 @@ async def download_and_store_images(
     failed = 0
 
     logger.info(
-        "Artwork #%d (%s/%s): starting image processing (%d images)",
+        "作品 #%d (%s/%s): 开始图片处理（共 %d 张）",
         artwork.id, artwork.platform, artwork.pid, total,
     )
 
@@ -175,7 +175,7 @@ async def download_and_store_images(
         if img_record.storage_path:
             skipped += 1
             logger.debug(
-                "  [%d/%d] page %d — already processed, skipping",
+                "  [%d/%d] 第 %d 页 — 已处理，跳过",
                 skipped + processed, total, img_record.page_index,
             )
             continue
@@ -184,7 +184,7 @@ async def download_and_store_images(
             await _process_single_image(client, artwork, img_record)
             processed += 1
             logger.info(
-                "  [%d/%d] page %d — OK (%dx%d, %s)",
+                "  [%d/%d] 第 %d 页 — 成功 (%dx%d, %s)",
                 processed + skipped, total, img_record.page_index,
                 img_record.width, img_record.height,
                 _human_size(img_record.file_size),
@@ -192,7 +192,7 @@ async def download_and_store_images(
         except Exception:
             failed += 1
             logger.warning(
-                "  [%d/%d] page %d — FAILED (url: %s)",
+                "  [%d/%d] 第 %d 页 — 失败 (url: %s)",
                 processed + skipped + failed, total,
                 img_record.page_index, img_record.url_original,
                 exc_info=True,
@@ -200,13 +200,13 @@ async def download_and_store_images(
 
     await db.commit()
     logger.info(
-        "Artwork #%d: done — %d processed, %d skipped, %d failed",
+        "作品 #%d: 完成 — %d 已处理, %d 已跳过, %d 失败",
         artwork.id, processed, skipped, failed,
     )
 
 
 def _human_size(size_bytes: int) -> str:
-    """Format bytes to human-readable string."""
+    """将字节数格式化为可读字符串。"""
     for unit in ("B", "KB", "MB"):
         if size_bytes < 1024:
             return f"{size_bytes:.1f}{unit}"
@@ -219,42 +219,42 @@ async def _process_single_image(
     artwork: Artwork,
     img_record: ArtworkImage,
 ) -> None:
-    """Download, process, and store a single image."""
+    """下载、处理并存储单张图片。"""
     logger.info(
-        "  Downloading page %d: %s",
+        "  正在下载第 %d 页: %s",
         img_record.page_index, img_record.url_original,
     )
     resp = await client.get(img_record.url_original, headers=_download_headers(img_record.url_original))
     resp.raise_for_status()
     raw_data = resp.content
     logger.info(
-        "  Downloaded %s (%s)", img_record.url_original, _human_size(len(raw_data)),
+        "  已下载 %s (%s)", img_record.url_original, _human_size(len(raw_data)),
     )
 
-    # Process original → WebP
+    # 处理原图 → WebP
     original_key = _storage_key(artwork.platform, artwork.pid, "original", img_record.page_index)
     original_bytes, width, height = _process_image(raw_data)
     original_storage_path, original_url = await _save(original_key, original_bytes)
     logger.debug(
-        "  Saved original: %s (%dx%d, %s → %s)",
+        "  已保存原图: %s (%dx%d, %s → %s)",
         original_key, width, height, _human_size(len(raw_data)), _human_size(len(original_bytes)),
     )
 
-    # Process thumbnail
+    # 处理缩略图
     thumb_key = _storage_key(artwork.platform, artwork.pid, "thumb", img_record.page_index)
     thumb_bytes, thumb_w, thumb_h = _process_image(raw_data, max_edge=settings.thumb_max_edge)
     _, thumb_url = await _save(thumb_key, thumb_bytes)
     logger.debug(
-        "  Saved thumb: %s (%dx%d, %s)",
+        "  已保存缩略图: %s (%dx%d, %s)",
         thumb_key, thumb_w, thumb_h, _human_size(len(thumb_bytes)),
     )
 
-    # Compute perceptual hash
+    # 计算感知哈希
     img_obj = Image.open(io.BytesIO(raw_data))
     phash_value = str(imagehash.phash(img_obj))
     logger.debug("  pHash: %s", phash_value)
 
-    # Update DB record — URLs point to backend serving endpoints
+    # 更新数据库记录 — URL 指向后端服务端点
     img_record.storage_path = original_storage_path
     img_record.url_original = original_url
     img_record.url_thumb = thumb_url

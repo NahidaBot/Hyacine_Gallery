@@ -36,23 +36,23 @@ export default function PostLogsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Post Logs</h1>
+      <h1 className="mb-6 text-2xl font-bold">发布记录</h1>
 
       {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
       {loading ? (
-        <p className="text-neutral-500">Loading...</p>
+        <p className="text-neutral-500">加载中...</p>
       ) : (
         <>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-neutral-200 text-left dark:border-neutral-700">
                 <th className="pb-2">ID</th>
-                <th className="pb-2">Artwork</th>
-                <th className="pb-2">Channel</th>
-                <th className="pb-2">Message</th>
-                <th className="pb-2">Posted By</th>
-                <th className="pb-2">Posted At</th>
+                <th className="pb-2">作品</th>
+                <th className="pb-2">频道</th>
+                <th className="pb-2">消息</th>
+                <th className="pb-2">发布者</th>
+                <th className="pb-2">发布时间</th>
               </tr>
             </thead>
             <tbody>
@@ -81,7 +81,7 @@ export default function PostLogsPage() {
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline"
                       >
-                        {log.message_id || "link"}
+                        {log.message_id || "链接"}
                       </a>
                     ) : (
                       <span className="text-neutral-400">
@@ -101,14 +101,14 @@ export default function PostLogsPage() {
                     colSpan={6}
                     className="py-4 text-center text-neutral-400"
                   >
-                    No post logs yet.
+                    暂无发布记录。
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
 
-          {/* Pagination */}
+          {/* 分页 */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center gap-4 text-sm">
               <button
@@ -116,17 +116,17 @@ export default function PostLogsPage() {
                 disabled={page === 1}
                 className="rounded border px-3 py-1 disabled:opacity-30 dark:border-neutral-700"
               >
-                Prev
+                上一页
               </button>
               <span className="text-neutral-500">
-                Page {page} / {totalPages} ({total} total)
+                第 {page} / {totalPages} 页（共 {total} 条）
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="rounded border px-3 py-1 disabled:opacity-30 dark:border-neutral-700"
               >
-                Next
+                下一页
               </button>
             </div>
           )}

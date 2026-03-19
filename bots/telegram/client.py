@@ -1,4 +1,4 @@
-"""HTTP client for communicating with the Hyacine Gallery backend API."""
+"""与 Hyacine Gallery 后端 API 通信的 HTTP 客户端。"""
 
 from __future__ import annotations
 
@@ -174,7 +174,7 @@ class GalleryClient:
         return artworks, data["total"]
 
     async def import_artwork(self, url: str, tags: list[str] | None = None) -> ArtworkData:
-        """Call the backend import endpoint: crawl URL -> create artwork."""
+        """调用后端导入接口：抓取 URL -> 创建作品。"""
         payload: dict[str, object] = {"url": url}
         if tags:
             payload["tags"] = tags
@@ -182,10 +182,10 @@ class GalleryClient:
         resp.raise_for_status()
         return ArtworkData.from_response(resp.json())
 
-    # --- Bot management APIs ---
+    # --- Bot 管理 API ---
 
     async def resolve_channel(self, artwork_id: int, platform: str = "telegram") -> ChannelData | None:
-        """Ask the backend which channel this artwork should be posted to."""
+        """向后端查询该作品应发布到哪个频道。"""
         resp = await self.http.post(
             "/api/admin/bot/channels/resolve",
             json={"artwork_id": artwork_id, "platform": platform},
@@ -223,7 +223,7 @@ class GalleryClient:
         return resp.json()
 
     async def get_bot_settings(self) -> dict[str, str]:
-        """Fetch all bot settings from the backend."""
+        """从后端获取所有 bot 设置。"""
         resp = await self.http.get("/api/admin/bot/settings")
         resp.raise_for_status()
         return {s["key"]: s["value"] for s in resp.json()}

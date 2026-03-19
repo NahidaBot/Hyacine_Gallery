@@ -22,14 +22,14 @@ class CrawlResult:
 
 
 class BaseCrawler(ABC):
-    """Base class for platform-specific crawlers."""
+    """各平台爬虫的基类。"""
 
     @abstractmethod
     def match(self, url: str) -> bool:
-        """Return True if this crawler can handle the given URL."""
+        """判断当前爬虫是否能处理给定的 URL。"""
         ...
 
     @abstractmethod
     async def fetch(self, url: str) -> CrawlResult:
-        """Fetch artwork metadata and image URLs from the given URL."""
+        """从给定 URL 抓取作品元数据和图片链接。"""
         ...

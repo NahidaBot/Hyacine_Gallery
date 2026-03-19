@@ -8,7 +8,7 @@ from app.models.bot import BotChannel, BotSetting
 from app.schemas.bot import BotChannelCreate, BotChannelUpdate, BotPostLogCreate
 
 
-# --- Post Logs ---
+# --- 发布日志 ---
 
 
 async def create_post_log(db: AsyncSession, data: BotPostLogCreate) -> BotPostLog:
@@ -47,7 +47,7 @@ async def get_post_logs(
     return list(result.scalars().all()), total
 
 
-# --- Bot Channels ---
+# --- 机器人频道 ---
 
 
 async def get_channels(
@@ -113,7 +113,7 @@ async def delete_channel(db: AsyncSession, channel_id: int) -> bool:
 
 
 def _match_conditions(conditions: dict, artwork: Artwork) -> bool:
-    """Evaluate whether an artwork matches a channel's routing conditions."""
+    """判断作品是否匹配频道的路由条件。"""
     if not conditions:
         return True
 
@@ -141,7 +141,7 @@ def _match_conditions(conditions: dict, artwork: Artwork) -> bool:
 async def resolve_channel(
     db: AsyncSession, artwork: Artwork, platform: str = "telegram"
 ) -> BotChannel | None:
-    """Find the first matching channel for the artwork based on routing rules."""
+    """根据路由规则查找作品匹配的第一个频道。"""
     channels = await get_channels(db, platform)
 
     default_channel: BotChannel | None = None
@@ -160,7 +160,7 @@ async def resolve_channel(
     return default_channel
 
 
-# --- Bot Settings ---
+# --- 机器人设置 ---
 
 
 async def get_all_settings(db: AsyncSession) -> dict[str, str]:

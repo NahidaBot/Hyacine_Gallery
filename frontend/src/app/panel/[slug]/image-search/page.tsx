@@ -50,14 +50,14 @@ export default function ImageSearchPage() {
 
   return (
     <div onPaste={onPaste}>
-      <h1 className="mb-2 text-2xl font-bold">Image Search</h1>
+      <h1 className="mb-2 text-2xl font-bold">以图搜图</h1>
       <p className="mb-6 text-sm text-neutral-400">
-        Upload an image to find similar artworks via perceptual hash.
+        上传图片，通过感知哈希查找相似作品。
       </p>
 
-      {/* Threshold */}
+      {/* 阈值 */}
       <div className="mb-4 flex items-center gap-3">
-        <label className="text-sm text-neutral-500">Threshold (0-20):</label>
+        <label className="text-sm text-neutral-500">阈值 (0-20)：</label>
         <input
           type="number"
           min={0}
@@ -66,10 +66,10 @@ export default function ImageSearchPage() {
           onChange={(e) => setThreshold(Number(e.target.value))}
           className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         />
-        <span className="text-xs text-neutral-400">Lower = stricter match</span>
+        <span className="text-xs text-neutral-400">越小越严格</span>
       </div>
 
-      {/* Upload area */}
+      {/* 上传区域 */}
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
@@ -85,25 +85,25 @@ export default function ImageSearchPage() {
         />
         {preview ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={preview} alt="Uploaded" className="max-h-48 rounded" />
+          <img src={preview} alt="已上传图片" className="max-h-48 rounded" />
         ) : (
           <>
             <p className="text-sm text-neutral-500">
-              Click, drag & drop, or paste an image
+              点击、拖放或粘贴图片
             </p>
           </>
         )}
       </div>
 
-      {/* Status */}
-      {searching && <p className="mb-4 text-sm text-neutral-400">Searching...</p>}
+      {/* 状态 */}
+      {searching && <p className="mb-4 text-sm text-neutral-400">搜索中...</p>}
       {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
-      {/* Results */}
+      {/* 结果 */}
       {!searching && results.length > 0 && (
         <div>
           <h2 className="mb-3 text-lg font-semibold">
-            {results.length} match{results.length > 1 ? "es" : ""} found
+            找到 {results.length} 个匹配
           </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {results.map((r) => (
@@ -125,7 +125,7 @@ export default function ImageSearchPage() {
                     #{r.artwork_id} — {r.title || r.pid}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    {r.platform}/{r.pid} · distance: {r.distance}
+                    {r.platform}/{r.pid} · 距离: {r.distance}
                   </p>
                 </div>
               </Link>
@@ -135,7 +135,7 @@ export default function ImageSearchPage() {
       )}
 
       {!searching && !error && preview && results.length === 0 && (
-        <p className="text-sm text-neutral-400">No similar artworks found.</p>
+        <p className="text-sm text-neutral-400">未找到相似作品。</p>
       )}
     </div>
   );

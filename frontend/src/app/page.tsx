@@ -20,11 +20,11 @@ export default async function HomePage({
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Gallery</h1>
+      <h1 className="mb-6 text-2xl font-bold">画廊</h1>
       <p className="mb-4 text-sm text-neutral-500">
-        {total} artworks
-        {params.tag && <> tagged <strong>#{params.tag}</strong></>}
-        {params.q && <> matching <strong>&ldquo;{params.q}&rdquo;</strong></>}
+        共 {total} 件作品
+        {params.tag && <> 标签 <strong>#{params.tag}</strong></>}
+        {params.q && <> 搜索 <strong>&ldquo;{params.q}&rdquo;</strong></>}
       </p>
       <ArtworkGrid artworks={artworks} />
     </div>

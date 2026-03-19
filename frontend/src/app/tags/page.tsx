@@ -7,7 +7,7 @@ export default async function TagsPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold">Tags</h1>
+      <h1 className="mb-6 text-2xl font-bold">标签</h1>
       <div className="flex flex-wrap gap-3">
         {tags.map(({ name, artwork_count }) => (
           <a
@@ -20,7 +20,7 @@ export default async function TagsPage() {
           </a>
         ))}
         {tags.length === 0 && (
-          <p className="text-neutral-400">No tags yet.</p>
+          <p className="text-neutral-400">暂无标签。</p>
         )}
       </div>
     </div>

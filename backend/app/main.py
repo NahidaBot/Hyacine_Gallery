@@ -13,11 +13,11 @@ from app.services.tag_service import seed_default_tag_types
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Seed default tag types on startup
+    # 启动时初始化默认标签类型
     async with async_session() as db:
         await seed_default_tag_types(db)
     yield
-    # Shutdown
+    # 关闭
 
 
 app = FastAPI(

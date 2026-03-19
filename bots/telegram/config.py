@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 class BotSettings(BaseSettings):
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
-    # Backend API
+    # 后端 API
     backend_url: str = "http://localhost:8000"
     admin_token: str = ""
 
@@ -14,11 +14,11 @@ class BotSettings(BaseSettings):
     telegram_comment_group: str = ""
     telegram_admin_chats: list[int] = []
 
-    # Behavior (defaults, can be overridden by backend bot_settings)
+    # 行为配置（默认值，可被后端 bot_settings 覆盖）
     notification_interval: int = 600
     message_tail_text: str = ""
 
-    # Debug
+    # 调试
     debug: bool = False
 
 

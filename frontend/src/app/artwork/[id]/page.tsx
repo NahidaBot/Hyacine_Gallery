@@ -23,7 +23,7 @@ export default async function ArtworkPage({ params }: Props) {
         {artwork.title || `${artwork.platform} #${artwork.pid}`}
       </h1>
       <p className="mb-6 text-sm text-neutral-500">
-        by {artwork.author || "Unknown"} · {artwork.platform}
+        作者 {artwork.author || "未知"} · {artwork.platform}
         {artwork.source_url && (
           <>
             {" · "}
@@ -33,7 +33,7 @@ export default async function ArtworkPage({ params }: Props) {
               rel="noopener noreferrer"
               className="underline"
             >
-              Source
+              来源
             </a>
           </>
         )}
@@ -45,7 +45,7 @@ export default async function ArtworkPage({ params }: Props) {
           <img
             key={img.id}
             src={img.url_original}
-            alt={`${artwork.title || artwork.pid} page ${img.page_index + 1}`}
+            alt={`${artwork.title || artwork.pid} 第 ${img.page_index + 1} 页`}
             className="w-full rounded-lg"
             loading="lazy"
           />

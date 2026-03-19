@@ -1,4 +1,4 @@
-"""Pixiv artwork crawler using public Ajax API."""
+"""Pixiv 作品爬虫，使用公开 Ajax API。"""
 
 from __future__ import annotations
 
@@ -39,26 +39,26 @@ class PixivCrawler(BaseCrawler):
     async def fetch(self, url: str) -> CrawlResult:
         pid = _extract_pid(url)
         if not pid:
-            return CrawlResult(success=False, error="Cannot extract Pixiv artwork ID")
+            return CrawlResult(success=False, error="无法提取 Pixiv 作品 ID")
 
         async with httpx.AsyncClient(headers=_HEADERS, timeout=30.0) as client:
-            # Fetch artwork detail
+            # 获取作品详情
             resp = await client.get(_AJAX_URL.format(pid=pid))
             if resp.status_code != 200:
                 return CrawlResult(
                     success=False,
-                    error=f"Pixiv API returned {resp.status_code}",
+                    error=f"Pixiv API 返回 {resp.status_code}",
                 )
             data = resp.json()
             if data.get("error"):
                 return CrawlResult(
                     success=False,
-                    error=data.get("message", "Pixiv API error"),
+                    error=data.get("message", "Pixiv API 错误"),
                 )
 
             body = data["body"]
 
-            # Fetch image pages
+            # 获取图片分页
             pages_resp = await client.get(_PAGES_URL.format(pid=pid))
             pages_resp.raise_for_status()
             pages_data = pages_resp.json()
@@ -67,25 +67,25 @@ class PixivCrawler(BaseCrawler):
                 for page in pages_data.get("body", [])
             ]
 
-            # Extract tags
+            # 提取标签
             tags: list[str] = []
             for tag_info in body.get("tags", {}).get("tags", []):
                 tag_name = tag_info.get("tag", "")
                 if tag_name:
                     tags.append(tag_name)
-                # Also add English translation if available
+                # 如果有英文翻译也一并添加
                 translation = tag_info.get("translation", {}).get("en")
                 if translation and translation != tag_name:
                     tags.append(translation)
 
-            # Dimensions from first page
+            # 首页尺寸
             width = body.get("width", 0)
             height = body.get("height", 0)
 
-            # R-18 check
+            # R-18 检查
             is_nsfw = body.get("xRestrict", 0) > 0
 
-            # AI check (Pixiv aiType: 0=not specified, 1=not AI, 2=AI)
+            # AI 检查 (Pixiv aiType: 0=未指定, 1=非AI, 2=AI)
             is_ai = body.get("aiType", 0) == 2
 
             return CrawlResult(

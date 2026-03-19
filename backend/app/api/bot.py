@@ -20,7 +20,7 @@ from app.services import artwork_service, bot_service
 router = APIRouter(dependencies=[AdminDep])
 
 
-# --- Post Logs ---
+# --- 发布日志 ---
 
 
 @router.post("/post-logs", response_model=BotPostLogResponse)
@@ -50,7 +50,7 @@ async def list_post_logs(
     )
 
 
-# --- Bot Channels ---
+# --- 机器人频道 ---
 
 
 @router.get("/channels", response_model=list[BotChannelResponse])
@@ -75,7 +75,7 @@ async def update_channel(
 ) -> BotChannelResponse:
     channel = await bot_service.update_channel(db, channel_id, data)
     if not channel:
-        raise HTTPException(404, "Channel not found")
+        raise HTTPException(404, "频道不存在")
     return _channel_to_response(channel)
 
 
@@ -85,7 +85,7 @@ async def delete_channel(
 ) -> dict[str, str]:
     deleted = await bot_service.delete_channel(db, channel_id)
     if not deleted:
-        raise HTTPException(404, "Channel not found")
+        raise HTTPException(404, "频道不存在")
     return {"status": "deleted"}
 
 
@@ -95,14 +95,14 @@ async def resolve_channel(
 ) -> BotChannelResponse | None:
     artwork = await artwork_service.get_artwork_by_id(db, data.artwork_id)
     if not artwork:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
     channel = await bot_service.resolve_channel(db, artwork, data.platform)
     if not channel:
         return None
     return _channel_to_response(channel)
 
 
-# --- Bot Settings ---
+# --- 机器人设置 ---
 
 
 @router.get("/settings", response_model=list[BotSettingResponse])
@@ -125,7 +125,7 @@ async def get_setting(key: str, db: AsyncSession = DBDep) -> BotSettingResponse:
     for s in settings:
         if s.key == key:
             return BotSettingResponse.model_validate(s)
-    raise HTTPException(404, "Setting not found")
+    raise HTTPException(404, "设置不存在")
 
 
 def _channel_to_response(channel) -> BotChannelResponse:  # type: ignore[no-untyped-def]

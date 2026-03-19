@@ -16,7 +16,7 @@ async def get_session() -> AsyncGenerator[AsyncSession]:
 async def require_admin(request: Request) -> None:
     token = request.headers.get("X-Admin-Token") or request.cookies.get("admin_token")
     if not token or not hmac.compare_digest(token, settings.admin_token):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        raise HTTPException(status_code=401, detail="未授权")
 
 
 AdminDep = Depends(require_admin)

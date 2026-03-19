@@ -22,7 +22,7 @@ export function ArtworkGrid({ artworks }: ArtworkGridProps) {
   if (filtered.length === 0) {
     return (
       <p className="py-12 text-center text-neutral-400">
-        {artworks.length > 0 ? "No artworks match the current filter." : "No artworks yet."}
+        {artworks.length > 0 ? "没有符合当前筛选条件的作品。" : "暂无作品。"}
       </p>
     );
   }

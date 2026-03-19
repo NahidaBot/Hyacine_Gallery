@@ -19,7 +19,7 @@ class Artwork(Base):
     __tablename__ = "artworks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    # Denormalized from primary source for convenience (filtering, display, bot routing)
+    # 从主要来源冗余存储，便于过滤、展示和机器人路由
     platform: Mapped[str] = mapped_column(String(50), index=True)
     pid: Mapped[str] = mapped_column(String(255), index=True)
     title: Mapped[str] = mapped_column(String(500), default="")

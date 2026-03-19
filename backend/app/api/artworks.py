@@ -32,7 +32,7 @@ async def list_artworks(
 async def random_artwork(db: AsyncSession = DBDep) -> ArtworkResponse:
     artwork = await artwork_service.get_random_artwork(db)
     if not artwork:
-        raise HTTPException(404, "No artworks found")
+        raise HTTPException(404, "暂无作品")
     return ArtworkResponse.model_validate(artwork)
 
 
@@ -40,5 +40,5 @@ async def random_artwork(db: AsyncSession = DBDep) -> ArtworkResponse:
 async def get_artwork(artwork_id: int, db: AsyncSession = DBDep) -> ArtworkResponse:
     artwork = await artwork_service.get_artwork_by_id(db, artwork_id)
     if not artwork:
-        raise HTTPException(404, "Artwork not found")
+        raise HTTPException(404, "作品不存在")
     return ArtworkResponse.model_validate(artwork)
