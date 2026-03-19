@@ -17,9 +17,9 @@ from app.database import Base
 
 class Artwork(Base):
     __tablename__ = "artworks"
-    __table_args__ = (UniqueConstraint("platform", "pid", name="uq_artworks_platform_pid"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Denormalized from primary source for convenience (filtering, display, bot routing)
     platform: Mapped[str] = mapped_column(String(50), index=True)
     pid: Mapped[str] = mapped_column(String(255), index=True)
     title: Mapped[str] = mapped_column(String(500), default="")
@@ -29,7 +29,6 @@ class Artwork(Base):
     page_count: Mapped[int] = mapped_column(Integer, default=1)
     is_nsfw: Mapped[bool] = mapped_column(Boolean, default=False)
     is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
-    raw_info: Mapped[str] = mapped_column(Text, default="{}")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -43,6 +42,9 @@ class Artwork(Base):
     )
     tags: Mapped[list["Tag"]] = relationship(
         secondary="artwork_tags", back_populates="artworks"
+    )
+    sources: Mapped[list["ArtworkSource"]] = relationship(
+        back_populates="artwork", cascade="all, delete-orphan"
     )
     post_logs: Mapped[list["BotPostLog"]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
@@ -63,8 +65,29 @@ class ArtworkImage(Base):
     file_name: Mapped[str] = mapped_column(String(500), default="")
     storage_path: Mapped[str] = mapped_column(String(1024), default="")
     telegram_file_id: Mapped[str] = mapped_column(String(255), default="")
+    phash: Mapped[str] = mapped_column(String(16), default="", index=True)
 
     artwork: Mapped["Artwork"] = relationship(back_populates="images")
+
+
+class ArtworkSource(Base):
+    __tablename__ = "artwork_sources"
+    __table_args__ = (UniqueConstraint("platform", "pid", name="uq_sources_platform_pid"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    artwork_id: Mapped[int] = mapped_column(
+        ForeignKey("artworks.id", ondelete="CASCADE"), index=True
+    )
+    platform: Mapped[str] = mapped_column(String(50), index=True)
+    pid: Mapped[str] = mapped_column(String(255))
+    source_url: Mapped[str] = mapped_column(String(2048), default="")
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
+    raw_info: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    artwork: Mapped["Artwork"] = relationship(back_populates="sources")
 
 
 class TagType(Base):

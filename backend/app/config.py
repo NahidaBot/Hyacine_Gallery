@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     thumb_max_edge: int = 1536
     webp_quality: int = 80
 
+    # Backend public URL (used to build absolute image URLs for frontend)
+    backend_url: str = "http://localhost:8000"
+
     # Admin
     admin_panel_slug: str = "change-me-to-random-string"
     admin_token: str = "change-me-to-a-secure-token"
@@ -34,7 +37,7 @@ class Settings(BaseSettings):
     backend_cors_origins: list[str] = ["http://localhost:3000"]
 
     # Debug
-    debug: bool = False
+    debug: bool = True
 
 
 settings = Settings()

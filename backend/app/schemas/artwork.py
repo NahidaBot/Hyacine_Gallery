@@ -25,6 +25,17 @@ class TagBrief(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ArtworkSourceResponse(BaseModel):
+    id: int
+    platform: str
+    pid: str
+    source_url: str
+    is_primary: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ArtworkResponse(BaseModel):
     id: int
     platform: str
@@ -38,6 +49,7 @@ class ArtworkResponse(BaseModel):
     is_ai: bool
     images: list[ArtworkImageResponse]
     tags: list[TagBrief]
+    sources: list[ArtworkSourceResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -78,3 +90,31 @@ class ArtworkUpdate(BaseModel):
 class ArtworkImportRequest(BaseModel):
     url: str
     tags: list[str] = []
+    auto_merge: bool = False
+
+
+class ArtworkAddSourceRequest(BaseModel):
+    url: str
+
+
+class ArtworkMergeRequest(BaseModel):
+    source_artwork_id: int
+
+
+class SimilarArtworkInfo(BaseModel):
+    artwork_id: int
+    distance: int
+    platform: str
+    pid: str
+    title: str
+    thumb_url: str
+
+    model_config = {"from_attributes": True}
+
+
+class ImportResponse(BaseModel):
+    """Extended import response that may include similar artwork candidates."""
+    artwork: ArtworkResponse | None = None
+    similar: list[SimilarArtworkInfo] = []
+    merged: bool = False
+    message: str = ""

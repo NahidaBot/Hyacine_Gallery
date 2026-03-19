@@ -13,8 +13,10 @@ from __future__ import annotations
 import io
 import logging
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
+import imagehash
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,15 +29,35 @@ logger = logging.getLogger(__name__)
 _http_client: httpx.AsyncClient | None = None
 
 
+# Domain → Referer mapping for hotlink-protected image CDNs
+_REFERER_MAP: dict[str, str] = {
+    "i.pximg.net": "https://www.pixiv.net/",
+    "pbs.twimg.com": "https://x.com/",
+}
+
+
 def _get_http_client() -> httpx.AsyncClient:
     global _http_client
     if _http_client is None or _http_client.is_closed:
         _http_client = httpx.AsyncClient(
             follow_redirects=True,
             timeout=60.0,
-            headers={"User-Agent": "HyacineGallery/1.0"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+            },
         )
     return _http_client
+
+
+def _download_headers(url: str) -> dict[str, str]:
+    """Build per-request headers (e.g. Referer) based on image URL domain."""
+    host = urlparse(url).hostname or ""
+    headers: dict[str, str] = {}
+    for domain, referer in _REFERER_MAP.items():
+        if host == domain or host.endswith(f".{domain}"):
+            headers["Referer"] = referer
+            break
+    return headers
 
 
 def _storage_key(platform: str, pid: str, variant: str, page_index: int) -> str:
@@ -70,16 +92,17 @@ def _process_image(
 # ── Storage backends ─────────────────────────────────────────────
 
 
-async def _save_local(key: str, data: bytes) -> str:
-    """Save bytes to local filesystem. Returns the relative path."""
+async def _save_local(key: str, data: bytes) -> tuple[str, str]:
+    """Save bytes to local filesystem. Returns (file_path, public_url)."""
     path = Path(settings.storage_local_path) / key
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
-    return str(path)
+    public_url = f"{settings.backend_url.rstrip('/')}/images/{key}"
+    return str(path), public_url
 
 
-async def _save_s3(key: str, data: bytes) -> str:
-    """Upload bytes to S3-compatible storage. Returns the public URL."""
+async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
+    """Upload bytes to S3-compatible storage. Returns (s3_key, public_url)."""
     try:
         import boto3
         from botocore.config import Config as BotoConfig
@@ -102,12 +125,14 @@ async def _save_s3(key: str, data: bytes) -> str:
     )
 
     if settings.s3_public_url:
-        return f"{settings.s3_public_url.rstrip('/')}/{key}"
-    return f"{settings.s3_endpoint}/{settings.s3_bucket}/{key}"
+        public_url = f"{settings.s3_public_url.rstrip('/')}/{key}"
+    else:
+        public_url = f"{settings.s3_endpoint}/{settings.s3_bucket}/{key}"
+    return key, public_url
 
 
-async def _save(key: str, data: bytes) -> str:
-    """Save to configured backend. Returns path or URL."""
+async def _save(key: str, data: bytes) -> tuple[str, str]:
+    """Save to configured backend. Returns (storage_path, public_url)."""
     if settings.storage_backend == "s3":
         return await _save_s3(key, data)
     return await _save_local(key, data)
@@ -129,26 +154,61 @@ async def download_and_store_images(
       - Updates width, height, file_size, file_name, storage_path, url_thumb
     """
     client = _get_http_client()
+    total = len(artwork.images)
+    processed = 0
+    skipped = 0
+    failed = 0
+
+    logger.info(
+        "Artwork #%d (%s/%s): starting image processing (%d images)",
+        artwork.id, artwork.platform, artwork.pid, total,
+    )
 
     for img_record in artwork.images:
         if not img_record.url_original:
+            skipped += 1
             continue
 
-        # Skip if already processed
         if img_record.storage_path:
+            skipped += 1
+            logger.debug(
+                "  [%d/%d] page %d — already processed, skipping",
+                skipped + processed, total, img_record.page_index,
+            )
             continue
 
         try:
             await _process_single_image(client, artwork, img_record)
+            processed += 1
+            logger.info(
+                "  [%d/%d] page %d — OK (%dx%d, %s)",
+                processed + skipped, total, img_record.page_index,
+                img_record.width, img_record.height,
+                _human_size(img_record.file_size),
+            )
         except Exception:
+            failed += 1
             logger.warning(
-                "Failed to process image %d for artwork #%d",
-                img_record.page_index,
-                artwork.id,
+                "  [%d/%d] page %d — FAILED (url: %s)",
+                processed + skipped + failed, total,
+                img_record.page_index, img_record.url_original,
                 exc_info=True,
             )
 
     await db.commit()
+    logger.info(
+        "Artwork #%d: done — %d processed, %d skipped, %d failed",
+        artwork.id, processed, skipped, failed,
+    )
+
+
+def _human_size(size_bytes: int) -> str:
+    """Format bytes to human-readable string."""
+    for unit in ("B", "KB", "MB"):
+        if size_bytes < 1024:
+            return f"{size_bytes:.1f}{unit}"
+        size_bytes /= 1024  # type: ignore[assignment]
+    return f"{size_bytes:.1f}GB"
 
 
 async def _process_single_image(
@@ -157,24 +217,46 @@ async def _process_single_image(
     img_record: ArtworkImage,
 ) -> None:
     """Download, process, and store a single image."""
-    resp = await client.get(img_record.url_original)
+    logger.info(
+        "  Downloading page %d: %s",
+        img_record.page_index, img_record.url_original,
+    )
+    resp = await client.get(img_record.url_original, headers=_download_headers(img_record.url_original))
     resp.raise_for_status()
     raw_data = resp.content
+    logger.info(
+        "  Downloaded %s (%s)", img_record.url_original, _human_size(len(raw_data)),
+    )
 
     # Process original → WebP
     original_key = _storage_key(artwork.platform, artwork.pid, "original", img_record.page_index)
     original_bytes, width, height = _process_image(raw_data)
-    original_path = await _save(original_key, original_bytes)
+    original_storage_path, original_url = await _save(original_key, original_bytes)
+    logger.debug(
+        "  Saved original: %s (%dx%d, %s → %s)",
+        original_key, width, height, _human_size(len(raw_data)), _human_size(len(original_bytes)),
+    )
 
     # Process thumbnail
     thumb_key = _storage_key(artwork.platform, artwork.pid, "thumb", img_record.page_index)
-    thumb_bytes, _, _ = _process_image(raw_data, max_edge=settings.thumb_max_edge)
-    thumb_path = await _save(thumb_key, thumb_bytes)
+    thumb_bytes, thumb_w, thumb_h = _process_image(raw_data, max_edge=settings.thumb_max_edge)
+    _, thumb_url = await _save(thumb_key, thumb_bytes)
+    logger.debug(
+        "  Saved thumb: %s (%dx%d, %s)",
+        thumb_key, thumb_w, thumb_h, _human_size(len(thumb_bytes)),
+    )
 
-    # Update DB record
-    img_record.storage_path = original_path
-    img_record.url_thumb = thumb_path
+    # Compute perceptual hash
+    img_obj = Image.open(io.BytesIO(raw_data))
+    phash_value = str(imagehash.phash(img_obj))
+    logger.debug("  pHash: %s", phash_value)
+
+    # Update DB record — URLs point to backend serving endpoints
+    img_record.storage_path = original_storage_path
+    img_record.url_original = original_url
+    img_record.url_thumb = thumb_url
     img_record.width = width
     img_record.height = height
     img_record.file_size = len(original_bytes)
     img_record.file_name = f"{img_record.page_index}.webp"
+    img_record.phash = phash_value
