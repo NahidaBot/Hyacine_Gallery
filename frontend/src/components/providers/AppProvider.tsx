@@ -1,0 +1,86 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+
+// ── Types ──
+
+type ThemeMode = "light" | "dark" | "system";
+type NsfwMode = "hide" | "show" | "only";
+
+interface AppContextValue {
+  theme: ThemeMode;
+  setTheme: (t: ThemeMode) => void;
+  nsfwMode: NsfwMode;
+  setNsfwMode: (m: NsfwMode) => void;
+}
+
+const AppContext = createContext<AppContextValue | null>(null);
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
+
+// ── Provider ──
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = useState<ThemeMode>("system");
+  const [nsfwMode, setNsfwModeState] = useState<NsfwMode>("hide");
+  const [mounted, setMounted] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") as ThemeMode | null;
+    const savedNsfw = localStorage.getItem("nsfw_mode") as NsfwMode | null;
+    if (savedTheme) setThemeState(savedTheme);
+    if (savedNsfw) setNsfwModeState(savedNsfw);
+    setMounted(true);
+  }, []);
+
+  // Apply dark class to <html>
+  useEffect(() => {
+    if (!mounted) return;
+
+    const applyDark = (dark: boolean) => {
+      document.documentElement.classList.toggle("dark", dark);
+    };
+
+    if (theme === "dark") {
+      applyDark(true);
+    } else if (theme === "light") {
+      applyDark(false);
+    } else {
+      // system
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      applyDark(mq.matches);
+      const handler = (e: MediaQueryListEvent) => applyDark(e.matches);
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    }
+  }, [theme, mounted]);
+
+  const setTheme = useCallback((t: ThemeMode) => {
+    setThemeState(t);
+    localStorage.setItem("theme", t);
+  }, []);
+
+  const setNsfwMode = useCallback((m: NsfwMode) => {
+    setNsfwModeState(m);
+    localStorage.setItem("nsfw_mode", m);
+  }, []);
+
+  // Prevent flash: render children only after mount
+  // But still render the wrapper so layout doesn't shift
+  return (
+    <AppContext.Provider value={{ theme, setTheme, nsfwMode, setNsfwMode }}>
+      {mounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}
+    </AppContext.Provider>
+  );
+}

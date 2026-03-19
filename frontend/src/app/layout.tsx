@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { AppProvider } from "@/components/providers/AppProvider";
+import { Navbar } from "@/components/Navbar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,24 +14,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("theme");var d=t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body className="font-sans antialiased">
-        <header className="border-b border-neutral-200 dark:border-neutral-800">
-          <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-            <Link href="/" className="text-xl font-bold">
-              Hyacine Gallery
-            </Link>
-            <div className="flex gap-6 text-sm">
-              <Link href="/" className="hover:underline">
-                Gallery
-              </Link>
-              <Link href="/tags" className="hover:underline">
-                Tags
-              </Link>
-            </div>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+        <AppProvider>
+          <Navbar />
+          <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+        </AppProvider>
       </body>
     </html>
   );
