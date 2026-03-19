@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.crawlers.base import BaseCrawler, CrawlResult
 from app.crawlers.gallery_dl import GalleryDLCrawler
+from app.crawlers.miyoushe import MiYouSheCrawler
 from app.crawlers.pixiv import PixivCrawler
 from app.crawlers.twitter import TwitterCrawler
 
@@ -13,6 +14,7 @@ __all__ = ["BaseCrawler", "CrawlResult", "crawl"]
 _CRAWLERS: list[BaseCrawler] = [
     PixivCrawler(),
     TwitterCrawler(),
+    MiYouSheCrawler(),
     GalleryDLCrawler(),
 ]
 

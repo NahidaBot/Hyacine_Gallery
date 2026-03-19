@@ -33,6 +33,9 @@ _http_client: httpx.AsyncClient | None = None
 _REFERER_MAP: dict[str, str] = {
     "i.pximg.net": "https://www.pixiv.net/",
     "pbs.twimg.com": "https://x.com/",
+    "upload-bbs.miyoushe.com": "https://www.miyoushe.com/",
+    "upload-os-bbs.hoyolab.com": "https://www.hoyolab.com/",
+    "act-upload.mihoyo.com": "https://www.miyoushe.com/",
 }
 
 
