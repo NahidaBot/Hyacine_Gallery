@@ -1,10 +1,12 @@
 import type {
   Artwork,
   ArtworkListResponse,
+  ArtworkSource,
   BotChannel,
   BotPostLog,
   BotPostLogListResponse,
   BotSetting,
+  ImportResponse,
   Tag,
   TagListResponse,
   TagType,
@@ -79,13 +81,56 @@ export async function adminUpdateArtwork(
   });
 }
 
+export async function adminDeleteArtworkImage(
+  artworkId: number,
+  imageId: number,
+): Promise<void> {
+  await adminFetch<unknown>(
+    `/api/admin/artworks/${artworkId}/images/${imageId}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function adminImportArtwork(
   url: string,
   tags?: string[],
-): Promise<Artwork> {
-  return adminFetch<Artwork>("/api/admin/artworks/import", {
+  autoMerge?: boolean,
+): Promise<ImportResponse> {
+  return adminFetch<ImportResponse>("/api/admin/artworks/import", {
     method: "POST",
-    body: JSON.stringify({ url, tags: tags ?? [] }),
+    body: JSON.stringify({ url, tags: tags ?? [], auto_merge: autoMerge ?? false }),
+  });
+}
+
+// ── Artwork Sources ──
+
+export async function adminAddSource(
+  artworkId: number,
+  url: string,
+): Promise<ArtworkSource> {
+  return adminFetch<ArtworkSource>(`/api/admin/artworks/${artworkId}/sources`, {
+    method: "POST",
+    body: JSON.stringify({ url }),
+  });
+}
+
+export async function adminDeleteSource(
+  artworkId: number,
+  sourceId: number,
+): Promise<void> {
+  await adminFetch<unknown>(
+    `/api/admin/artworks/${artworkId}/sources/${sourceId}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function adminMergeArtwork(
+  targetId: number,
+  sourceArtworkId: number,
+): Promise<Artwork> {
+  return adminFetch<Artwork>(`/api/admin/artworks/${targetId}/merge`, {
+    method: "POST",
+    body: JSON.stringify({ source_artwork_id: sourceArtworkId }),
   });
 }
 

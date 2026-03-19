@@ -12,12 +12,17 @@ import {
 
 type ThemeMode = "light" | "dark" | "system";
 type NsfwMode = "hide" | "show" | "only";
+type AiMode = "hide" | "show" | "only";
 
 interface AppContextValue {
   theme: ThemeMode;
   setTheme: (t: ThemeMode) => void;
   nsfwMode: NsfwMode;
   setNsfwMode: (m: NsfwMode) => void;
+  aiMode: AiMode;
+  setAiMode: (m: AiMode) => void;
+  columns: number;
+  setColumns: (n: number) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -33,14 +38,20 @@ export function useApp() {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const [nsfwMode, setNsfwModeState] = useState<NsfwMode>("hide");
+  const [aiMode, setAiModeState] = useState<AiMode>("show");
+  const [columns, setColumnsState] = useState(5);
   const [mounted, setMounted] = useState(false);
 
   // Load from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") as ThemeMode | null;
     const savedNsfw = localStorage.getItem("nsfw_mode") as NsfwMode | null;
+    const savedAi = localStorage.getItem("ai_mode") as AiMode | null;
+    const savedCols = localStorage.getItem("columns");
     if (savedTheme) setThemeState(savedTheme);
     if (savedNsfw) setNsfwModeState(savedNsfw);
+    if (savedAi) setAiModeState(savedAi);
+    if (savedCols) setColumnsState(Number(savedCols));
     setMounted(true);
   }, []);
 
@@ -76,10 +87,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("nsfw_mode", m);
   }, []);
 
-  // Prevent flash: render children only after mount
-  // But still render the wrapper so layout doesn't shift
+  const setAiMode = useCallback((m: AiMode) => {
+    setAiModeState(m);
+    localStorage.setItem("ai_mode", m);
+  }, []);
+
+  const setColumns = useCallback((n: number) => {
+    setColumnsState(n);
+    localStorage.setItem("columns", String(n));
+  }, []);
+
   return (
-    <AppContext.Provider value={{ theme, setTheme, nsfwMode, setNsfwMode }}>
+    <AppContext.Provider value={{ theme, setTheme, nsfwMode, setNsfwMode, aiMode, setAiMode, columns, setColumns }}>
       {mounted ? children : <div style={{ visibility: "hidden" }}>{children}</div>}
     </AppContext.Provider>
   );

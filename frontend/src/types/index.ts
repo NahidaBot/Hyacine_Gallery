@@ -16,6 +16,15 @@ export interface TagBrief {
   type: string;
 }
 
+export interface ArtworkSource {
+  id: number;
+  platform: string;
+  pid: string;
+  source_url: string;
+  is_primary: boolean;
+  created_at: string;
+}
+
 export interface Artwork {
   id: number;
   platform: string;
@@ -29,8 +38,25 @@ export interface Artwork {
   is_ai: boolean;
   images: ArtworkImage[];
   tags: TagBrief[];
+  sources: ArtworkSource[];
   created_at: string;
   updated_at: string;
+}
+
+export interface SimilarArtworkInfo {
+  artwork_id: number;
+  distance: number;
+  platform: string;
+  pid: string;
+  title: string;
+  thumb_url: string;
+}
+
+export interface ImportResponse {
+  artwork: Artwork | null;
+  similar: SimilarArtworkInfo[];
+  merged: boolean;
+  message: string;
 }
 
 export interface ArtworkListResponse {

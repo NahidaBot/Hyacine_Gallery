@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import type { Artwork, ArtworkListResponse } from "@/types";
+import type { Artwork, ArtworkListResponse, ImportResponse, SimilarArtworkInfo } from "@/types";
 import {
   adminDeleteArtwork,
   adminFetchArtworks,
   adminImportArtwork,
+  adminMergeArtwork,
 } from "@/lib/admin-api";
 
 export default function ArtworksPage() {
@@ -26,6 +27,7 @@ export default function ArtworksPage() {
   const [importTags, setImportTags] = useState("");
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<ImportResponse | null>(null);
 
   const pageSize = 20;
 
@@ -60,25 +62,61 @@ export default function ArtworksPage() {
     }
   }
 
-  async function handleImport() {
+  async function handleImport(autoMerge = false) {
     if (!importUrl.trim()) return;
     setImporting(true);
     setImportError("");
+    setImportResult(null);
     try {
       const tags = importTags
-        .split(/[\s,]+/)
+        .split(",")
         .map((t) => t.replace(/^#/, "").trim())
         .filter(Boolean);
-      await adminImportArtwork(importUrl.trim(), tags);
-      setShowImport(false);
-      setImportUrl("");
-      setImportTags("");
-      await load();
+      const result = await adminImportArtwork(importUrl.trim(), tags, autoMerge);
+      setImportResult(result);
+
+      // If no similar candidates, close modal and refresh
+      if (!result.similar?.length) {
+        setShowImport(false);
+        setImportUrl("");
+        setImportTags("");
+        setImportResult(null);
+        await load();
+      }
     } catch (err) {
       setImportError(String(err));
     } finally {
       setImporting(false);
     }
+  }
+
+  async function handleMergeCandidate(candidate: SimilarArtworkInfo) {
+    if (!importResult?.artwork) return;
+    try {
+      // Merge: keep the one with more pages
+      const newId = importResult.artwork.id;
+      if (importResult.artwork.page_count <= candidate.artwork_id) {
+        // This is approximate; the backend merge handles page count comparison
+        await adminMergeArtwork(candidate.artwork_id, newId);
+      } else {
+        await adminMergeArtwork(newId, candidate.artwork_id);
+      }
+      setShowImport(false);
+      setImportUrl("");
+      setImportTags("");
+      setImportResult(null);
+      await load();
+    } catch (err) {
+      alert(String(err));
+    }
+  }
+
+  function closeImport() {
+    setShowImport(false);
+    setImportUrl("");
+    setImportTags("");
+    setImportError("");
+    setImportResult(null);
   }
 
   const totalPages = Math.ceil(total / pageSize);
@@ -112,44 +150,102 @@ export default function ArtworksPage() {
       {/* Import Modal */}
       {showImport && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 dark:bg-neutral-900">
+          <div className="mx-4 w-full max-w-lg rounded-lg bg-white p-6 dark:bg-neutral-900">
             <h2 className="mb-4 text-lg font-bold">Import Artwork</h2>
-            <label className="mb-1 block text-sm font-medium">URL</label>
-            <input
-              type="url"
-              value={importUrl}
-              onChange={(e) => setImportUrl(e.target.value)}
-              placeholder="https://www.pixiv.net/artworks/..."
-              className="mb-3 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
-            />
-            <label className="mb-1 block text-sm font-medium">
-              Tags (space or comma separated)
-            </label>
-            <input
-              type="text"
-              value={importTags}
-              onChange={(e) => setImportTags(e.target.value)}
-              placeholder="landscape scenery"
-              className="mb-4 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
-            />
-            {importError && (
-              <p className="mb-3 text-sm text-red-500">{importError}</p>
+
+            {/* Similar candidates found */}
+            {importResult?.similar?.length ? (
+              <div>
+                <p className="mb-2 text-sm text-yellow-600 dark:text-yellow-400">
+                  {importResult.message}
+                </p>
+                <p className="mb-3 text-sm text-neutral-500">
+                  Imported as #{importResult.artwork?.id}. Similar artworks found:
+                </p>
+                <div className="mb-4 space-y-2">
+                  {importResult.similar.map((s) => (
+                    <div
+                      key={s.artwork_id}
+                      className="flex items-center gap-3 rounded border border-neutral-200 p-2 dark:border-neutral-700"
+                    >
+                      {s.thumb_url && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={s.thumb_url}
+                          alt=""
+                          className="h-12 w-12 rounded object-cover"
+                        />
+                      )}
+                      <div className="flex-1 text-sm">
+                        <p className="font-medium">
+                          #{s.artwork_id} — {s.title || s.pid}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {s.platform}/{s.pid} · distance: {s.distance}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleMergeCandidate(s)}
+                        className="rounded bg-orange-600 px-3 py-1 text-xs font-medium text-white hover:bg-orange-700"
+                      >
+                        Merge
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      // Keep as separate artwork
+                      closeImport();
+                      load();
+                    }}
+                    className="rounded px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    Keep separate
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <label className="mb-1 block text-sm font-medium">URL</label>
+                <input
+                  type="url"
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  placeholder="https://www.pixiv.net/artworks/..."
+                  className="mb-3 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+                />
+                <label className="mb-1 block text-sm font-medium">
+                  Tags (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={importTags}
+                  onChange={(e) => setImportTags(e.target.value)}
+                  placeholder="landscape, scenery"
+                  className="mb-4 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+                />
+                {importError && (
+                  <p className="mb-3 text-sm text-red-500">{importError}</p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={closeImport}
+                    className="rounded px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => handleImport(false)}
+                    disabled={importing}
+                    className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {importing ? "Importing..." : "Import"}
+                  </button>
+                </div>
+              </>
             )}
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowImport(false)}
-                className="rounded px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleImport}
-                disabled={importing}
-                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {importing ? "Importing..." : "Import"}
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -168,6 +264,7 @@ export default function ArtworksPage() {
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">Author</th>
                   <th className="px-3 py-2">Platform</th>
+                  <th className="px-3 py-2">Sources</th>
                   <th className="px-3 py-2">Tags</th>
                   <th className="px-3 py-2">Flags</th>
                   <th className="px-3 py-2">Actions</th>
@@ -204,6 +301,11 @@ export default function ArtworksPage() {
                     </td>
                     <td className="max-w-32 truncate px-3 py-2">{a.author}</td>
                     <td className="px-3 py-2">{a.platform}</td>
+                    <td className="px-3 py-2 text-xs text-neutral-500">
+                      {(a.sources?.length ?? 0) > 1
+                        ? `${a.sources.length} sources`
+                        : a.platform}
+                    </td>
                     <td className="max-w-40 truncate px-3 py-2 text-xs text-neutral-500">
                       {a.tags.map((t) => `#${t.name}`).join(" ")}
                     </td>
@@ -240,7 +342,7 @@ export default function ArtworksPage() {
                 {artworks.length === 0 && (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-3 py-8 text-center text-neutral-400"
                     >
                       No artworks found.

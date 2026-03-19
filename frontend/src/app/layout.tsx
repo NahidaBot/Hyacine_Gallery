@@ -26,7 +26,7 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <AppProvider>
           <Navbar />
-          <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
+          <main className="px-6 py-8">{children}</main>
         </AppProvider>
       </body>
     </html>

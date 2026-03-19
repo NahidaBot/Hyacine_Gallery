@@ -4,8 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { Artwork } from "@/types";
 import {
+  adminAddSource,
   adminDeleteArtwork,
+  adminDeleteArtworkImage,
+  adminDeleteSource,
   adminFetchArtwork,
+  adminMergeArtwork,
   adminUpdateArtwork,
 } from "@/lib/admin-api";
 
@@ -26,6 +30,16 @@ export default function ArtworkEditPage() {
   const [isNsfw, setIsNsfw] = useState(false);
   const [isAi, setIsAi] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
+
+  // Add source
+  const [showAddSource, setShowAddSource] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [addingSource, setAddingSource] = useState(false);
+
+  // Merge
+  const [showMerge, setShowMerge] = useState(false);
+  const [mergeId, setMergeId] = useState("");
+  const [merging, setMerging] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,7 +67,7 @@ export default function ArtworkEditPage() {
     setError("");
     try {
       const tags = tagsInput
-        .split(/[\s,]+/)
+        .split(",")
         .map((t) => t.replace(/^#/, "").trim())
         .filter(Boolean);
       const updated = await adminUpdateArtwork(artworkId, {
@@ -83,10 +97,56 @@ export default function ArtworkEditPage() {
     }
   }
 
+  async function handleAddSource() {
+    if (!sourceUrl.trim()) return;
+    setAddingSource(true);
+    try {
+      await adminAddSource(artworkId, sourceUrl.trim());
+      setShowAddSource(false);
+      setSourceUrl("");
+      await load();
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setAddingSource(false);
+    }
+  }
+
+  async function handleDeleteSource(sourceId: number) {
+    if (!confirm("Remove this source?")) return;
+    try {
+      await adminDeleteSource(artworkId, sourceId);
+      await load();
+    } catch (err) {
+      alert(String(err));
+    }
+  }
+
+  async function handleMerge() {
+    const targetId = Number(mergeId);
+    if (!targetId || targetId === artworkId) return;
+    if (!confirm(`Merge artwork #${targetId} into this artwork? #${targetId} will be deleted.`))
+      return;
+    setMerging(true);
+    try {
+      await adminMergeArtwork(artworkId, targetId);
+      setShowMerge(false);
+      setMergeId("");
+      await load();
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setMerging(false);
+    }
+  }
+
   if (loading)
     return <p className="text-sm text-neutral-400">Loading...</p>;
   if (!artwork)
     return <p className="text-sm text-red-500">{error || "Not found"}</p>;
+
+  const inputCls =
+    "w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900";
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -105,39 +165,147 @@ export default function ArtworkEditPage() {
       {/* Image preview */}
       <div className="mb-6 flex gap-2 overflow-x-auto">
         {artwork.images.map((img) => (
-          <a
-            key={img.id}
-            href={img.url_original}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={img.url_thumb || img.url_original}
-              alt={`page ${img.page_index + 1}`}
-              className="h-32 rounded border border-neutral-200 object-cover dark:border-neutral-700"
-            />
-          </a>
+          <div key={img.id} className="group relative shrink-0">
+            <a
+              href={img.url_original}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img.url_thumb || img.url_original}
+                alt={`page ${img.page_index + 1}`}
+                className="h-32 rounded border border-neutral-200 object-cover dark:border-neutral-700"
+              />
+            </a>
+            {artwork.images.length > 1 && (
+              <button
+                onClick={async () => {
+                  if (!confirm(`Delete page ${img.page_index + 1}?`)) return;
+                  try {
+                    await adminDeleteArtworkImage(artworkId, img.id);
+                    await load();
+                  } catch (err) {
+                    alert(String(err));
+                  }
+                }}
+                className="absolute -right-1 -top-1 hidden size-5 items-center justify-center rounded-full bg-red-600 text-xs text-white hover:bg-red-700 group-hover:flex"
+                title={`Delete page ${img.page_index + 1}`}
+              >
+                x
+              </button>
+            )}
+            <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+              {img.page_index + 1}
+            </span>
+          </div>
         ))}
       </div>
 
-      {/* Meta info */}
-      <div className="mb-6 text-sm text-neutral-500">
-        <span>{artwork.platform} / {artwork.pid}</span>
-        {artwork.source_url && (
-          <>
-            {" · "}
-            <a
-              href={artwork.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
+      {/* Sources */}
+      <div className="mb-6 rounded border border-neutral-200 p-4 dark:border-neutral-800">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Sources</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAddSource(!showAddSource)}
+              className="text-xs text-blue-600 hover:underline"
             >
-              Source
-            </a>
-          </>
+              + Add source
+            </button>
+            <button
+              onClick={() => setShowMerge(!showMerge)}
+              className="text-xs text-orange-600 hover:underline"
+            >
+              Merge artwork
+            </button>
+          </div>
+        </div>
+
+        {/* Source list */}
+        <div className="space-y-1">
+          {artwork.sources?.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-2 text-sm"
+            >
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  s.is_primary
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+                }`}
+              >
+                {s.platform}
+              </span>
+              <span className="text-xs text-neutral-500">{s.pid}</span>
+              {s.source_url && (
+                <a
+                  href={s.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  link
+                </a>
+              )}
+              {s.is_primary && (
+                <span className="text-[10px] text-neutral-400">primary</span>
+              )}
+              {!s.is_primary && (
+                <button
+                  onClick={() => handleDeleteSource(s.id)}
+                  className="text-[10px] text-red-500 hover:underline"
+                >
+                  remove
+                </button>
+              )}
+            </div>
+          ))}
+          {(!artwork.sources || artwork.sources.length === 0) && (
+            <p className="text-xs text-neutral-400">No sources recorded.</p>
+          )}
+        </div>
+
+        {/* Add source form */}
+        {showAddSource && (
+          <div className="mt-3 flex gap-2">
+            <input
+              type="url"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://twitter.com/..."
+              className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+            />
+            <button
+              onClick={handleAddSource}
+              disabled={addingSource}
+              className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {addingSource ? "..." : "Add"}
+            </button>
+          </div>
         )}
-        <span> · {artwork.images.length} images</span>
+
+        {/* Merge form */}
+        {showMerge && (
+          <div className="mt-3 flex gap-2">
+            <input
+              type="number"
+              value={mergeId}
+              onChange={(e) => setMergeId(e.target.value)}
+              placeholder="Artwork ID to merge into this one"
+              className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+            />
+            <button
+              onClick={handleMerge}
+              disabled={merging}
+              className="rounded bg-orange-600 px-3 py-1 text-xs font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+            >
+              {merging ? "..." : "Merge"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Edit form */}
@@ -148,7 +316,7 @@ export default function ArtworkEditPage() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className={inputCls}
           />
         </div>
         <div>
@@ -157,18 +325,18 @@ export default function ArtworkEditPage() {
             type="text"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className={inputCls}
           />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">
-            Tags (comma or space separated)
+            Tags (comma separated)
           </label>
           <input
             type="text"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            className={inputCls}
           />
         </div>
         <div className="flex gap-6">

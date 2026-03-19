@@ -9,12 +9,14 @@ interface ArtworkGridProps {
 }
 
 export function ArtworkGrid({ artworks }: ArtworkGridProps) {
-  const { nsfwMode } = useApp();
+  const { nsfwMode, aiMode, columns } = useApp();
 
   const filtered = artworks.filter((a) => {
-    if (nsfwMode === "hide") return !a.is_nsfw;
-    if (nsfwMode === "only") return a.is_nsfw;
-    return true; // "show"
+    if (nsfwMode === "hide" && a.is_nsfw) return false;
+    if (nsfwMode === "only" && !a.is_nsfw) return false;
+    if (aiMode === "hide" && a.is_ai) return false;
+    if (aiMode === "only" && !a.is_ai) return false;
+    return true;
   });
 
   if (filtered.length === 0) {
@@ -26,9 +28,11 @@ export function ArtworkGrid({ artworks }: ArtworkGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <div className="gap-4" style={{ columnCount: columns }}>
       {filtered.map((artwork) => (
-        <ArtworkCard key={artwork.id} artwork={artwork} />
+        <div key={artwork.id} className="mb-4 break-inside-avoid">
+          <ArtworkCard artwork={artwork} />
+        </div>
       ))}
     </div>
   );
