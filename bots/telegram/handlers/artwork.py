@@ -21,6 +21,17 @@ from config import bot_settings
 
 logger = logging.getLogger(__name__)
 
+# \w 在 Python re 中 Unicode 感知，自动保留汉字、假名、韩文、字母、数字、下划线
+_HASHTAG_UNSAFE_RE = re.compile(r"[^\w]")
+
+
+def _to_hashtag(tag: str) -> str:
+    """将 tag 名称转换为合法的 Telegram hashtag（含 # 前缀）。"""
+    tag = tag.replace(" ", "_").replace("-", "_")
+    tag = _HASHTAG_UNSAFE_RE.sub("", tag)
+    tag = tag.strip("_")
+    return f"#{tag}" if tag else ""
+
 
 def _get_client(context: ContextTypes.DEFAULT_TYPE) -> GalleryClient:
     return context.bot_data["gallery_client"]  # type: ignore[return-value]
@@ -61,8 +72,9 @@ def format_caption(artwork: ArtworkData, tail_text: str = "") -> str:
         parts.append(f"<b>{title}</b>")
 
     if artwork.tag_names:
-        tag_line = " ".join(f"#{t}" for t in artwork.tag_names)
-        parts.append(tag_line)
+        tag_line = " ".join(filter(None, (_to_hashtag(t) for t in artwork.tag_names)))
+        if tag_line:
+            parts.append(tag_line)
 
     if artwork.source_url:
         parts.append(f'<a href="{artwork.source_url}">source</a>')
