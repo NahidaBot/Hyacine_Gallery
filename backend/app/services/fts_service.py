@@ -44,14 +44,18 @@ async def fts_search_artwork_ids(db: AsyncSession, query: str, limit: int = 100)
         return []
 
     if _is_sqlite:
-        result = await db.execute(
-            text(
-                "SELECT rowid FROM artworks_fts "
-                "WHERE artworks_fts MATCH :q ORDER BY rank LIMIT :limit"
-            ),
-            {"q": query, "limit": limit},
-        )
-        return [row[0] for row in result.all()]
+        try:
+            result = await db.execute(
+                text(
+                    "SELECT rowid FROM artworks_fts "
+                    "WHERE artworks_fts MATCH :q ORDER BY rank LIMIT :limit"
+                ),
+                {"q": query, "limit": limit},
+            )
+            return [row[0] for row in result.all()]
+        except Exception:
+            logger.warning("FTS 查询失败，将 fallback 到 LIKE", exc_info=True)
+            return []
     else:
         # PostgreSQL: trigram 相似度搜索
         result = await db.execute(
@@ -74,7 +78,16 @@ async def rebuild_fts_index(db: AsyncSession) -> int:
     if not _is_sqlite:
         return 0
 
-    await db.execute(text("DELETE FROM artworks_fts"))
+    try:
+        await db.execute(text("DELETE FROM artworks_fts"))
+    except Exception:
+        # FTS 表损坏时先删除再重建
+        logger.warning("FTS 表可能损坏，尝试重建...")
+        await db.rollback()
+        await db.execute(text("DROP TABLE IF EXISTS artworks_fts"))
+        await db.commit()
+        await ensure_fts_index(db)
+
     await db.execute(
         text(
             "INSERT INTO artworks_fts(rowid, title, title_zh, author) "
