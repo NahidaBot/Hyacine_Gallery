@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import io
 import logging
 import re
 import time
 from dataclasses import dataclass
-
-import asyncio
-import io
 
 import httpx
 from PIL import Image
@@ -382,7 +381,6 @@ async def _handle_post_url(
         await status_msg.edit_text(f"导入失败：{error_detail}")
         return
 
-
     if no_post:
         # 在聊天中展示导入的作品
         await send_artwork(update, artwork, client)
@@ -420,9 +418,7 @@ async def _handle_post_id(
     args = context.args or []
     if not args:
         await update.message.reply_text(
-            "用法：\n"
-            "/post <url> [#tag1 #tag2] — 导入并发布\n"
-            "/post <id> — 发布已有作品"
+            "用法：\n/post <url> [#tag1 #tag2] — 导入并发布\n/post <id> — 发布已有作品"
         )
         return
 

@@ -11,7 +11,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from client import GalleryClient
 from handlers.artwork import _get_client, _is_admin
 
 logger = logging.getLogger(__name__)
@@ -86,7 +85,12 @@ async def _handle_phash_search(
             title = r.title or r.pid
             lines.append(f"• <b>{title}</b> ({r.platform}, 距离={r.distance})")
             buttons.append(
-                [InlineKeyboardButton(f"#{r.artwork_id} {title[:30]}", callback_data=f"view_{r.artwork_id}")]
+                [
+                    InlineKeyboardButton(
+                        f"#{r.artwork_id} {title[:30]}",
+                        callback_data=f"view_{r.artwork_id}",
+                    )
+                ]
             )
         await status.edit_text(
             "\n".join(lines),
@@ -143,7 +147,12 @@ async def _handle_forwarded_reverse_search(
             title = r.title or r.pid
             lines.append(f"• <b>{title}</b> ({r.platform}, 距离={r.distance})")
             buttons.append(
-                [InlineKeyboardButton(f"#{r.artwork_id} {title[:30]}", callback_data=f"view_{r.artwork_id}")]
+                [
+                    InlineKeyboardButton(
+                        f"#{r.artwork_id} {title[:30]}",
+                        callback_data=f"view_{r.artwork_id}",
+                    )
+                ]
             )
         await status.edit_text(
             "\n".join(lines),
@@ -181,7 +190,8 @@ async def _do_reverse_search(
         title = r.title or "未知"
         lines.append(f"• [{r.provider}] <b>{title}</b> ({r.platform}, {r.similarity:.0f}%)")
         key = _store_url(context, r.source_url)
-        buttons.append([InlineKeyboardButton(f"导入 {r.platform} ({r.similarity:.0f}%)", callback_data=f"imp:{key}")])
+        btn_text = f"导入 {r.platform} ({r.similarity:.0f}%)"
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"imp:{key}")])
 
     buttons.append([InlineKeyboardButton("忽略", callback_data="dismiss")])
     await status_message.edit_text(

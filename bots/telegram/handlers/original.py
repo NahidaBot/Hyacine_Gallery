@@ -30,9 +30,7 @@ def _ext_from_url(url: str) -> str:
     return ext
 
 
-async def channel_post_handler(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def channel_post_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """处理评论群中转发的频道帖子 — 回复原图。"""
     message = update.effective_message
     if not message:
@@ -66,7 +64,7 @@ async def channel_post_handler(
 
     # 优先使用 raw 原始文件，无 raw 时降级到 WebP original
     raw_urls = artwork.raw_image_urls
-    effective_urls = [r if r else w for r, w in zip(raw_urls, urls)]
+    effective_urls = [r if r else w for r, w in zip(raw_urls, urls, strict=False)]
 
     # 以文档形式分批发送原图（Telegram 限制每批 10 张）
     for batch_start in range(0, len(effective_urls), 10):

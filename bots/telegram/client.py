@@ -249,23 +249,16 @@ class GalleryClient:
         artworks = [ArtworkData.from_response(a) for a in data["data"]]
         return artworks, data["total"]
 
-    async def semantic_search(
-        self, query: str, top_k: int = 5
-    ) -> list[tuple[ArtworkData, float]]:
+    async def semantic_search(self, query: str, top_k: int = 5) -> list[tuple[ArtworkData, float]]:
         """语义搜索，返回 (artwork, score) 列表。"""
-        resp = await self.http.get(
-            "/api/artworks/search", params={"q": query, "top_k": top_k}
-        )
+        resp = await self.http.get("/api/artworks/search", params={"q": query, "top_k": top_k})
         resp.raise_for_status()
         data = resp.json()
         return [
-            (ArtworkData.from_response(r["artwork"]), r["score"])
-            for r in data.get("results", [])
+            (ArtworkData.from_response(r["artwork"]), r["score"]) for r in data.get("results", [])
         ]
 
-    async def search_by_image(
-        self, image_data: bytes, threshold: int = 10
-    ) -> list[SimilarArtwork]:
+    async def search_by_image(self, image_data: bytes, threshold: int = 10) -> list[SimilarArtwork]:
         """上传图片到后端 pHash 搜索端点。"""
         resp = await self.http.post(
             "/api/admin/artworks/search-by-image",
@@ -299,7 +292,9 @@ class GalleryClient:
 
     # --- Bot 管理 API ---
 
-    async def resolve_channel(self, artwork_id: int, platform: str = "telegram") -> ChannelData | None:
+    async def resolve_channel(
+        self, artwork_id: int, platform: str = "telegram"
+    ) -> ChannelData | None:
         """向后端查询该作品应发布到哪个频道。"""
         resp = await self.http.post(
             "/api/admin/bot/channels/resolve",
@@ -341,9 +336,7 @@ class GalleryClient:
 
     async def pop_queue_item(self, platform: str = "telegram") -> QueueItem | None:
         """取出下一条 pending 队列条目并标记为 processing。"""
-        resp = await self.http.post(
-            "/api/admin/bot/queue/pop", params={"platform": platform}
-        )
+        resp = await self.http.post("/api/admin/bot/queue/pop", params={"platform": platform})
         if resp.status_code == 200:
             data = resp.json()
             if data is None:
@@ -356,9 +349,7 @@ class GalleryClient:
         resp.raise_for_status()
 
     async def mark_queue_failed(self, item_id: int, error: str = "") -> None:
-        await self.http.post(
-            f"/api/admin/bot/queue/{item_id}/failed", params={"error": error}
-        )
+        await self.http.post(f"/api/admin/bot/queue/{item_id}/failed", params={"error": error})
 
     async def get_today_post_count(self, platform: str = "telegram") -> int:
         resp = await self.http.get(

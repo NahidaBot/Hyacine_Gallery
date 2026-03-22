@@ -5,8 +5,8 @@ import logging
 from telegram import BotCommand
 from telegram.ext import Application, ApplicationBuilder
 
-from config import bot_settings
 from client import GalleryClient
+from config import bot_settings
 from handlers import register_handlers
 from handlers.queue import process_post_queue
 
