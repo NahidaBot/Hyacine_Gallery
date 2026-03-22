@@ -8,9 +8,9 @@ import re
 
 import httpx
 
-logger = logging.getLogger(__name__)
-
 from app.crawlers.base import BaseCrawler, CrawlResult
+
+logger = logging.getLogger(__name__)
 
 # 匹配 CJK 统一表意文字范围（用于中文优先 tag 策略）
 _CHINESE_RE = re.compile(r"[一-龥]")
@@ -22,7 +22,11 @@ _AJAX_URL = "https://www.pixiv.net/ajax/illust/{pid}?lang=zh"
 _PAGES_URL = "https://www.pixiv.net/ajax/illust/{pid}/pages?lang=zh"
 
 _HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/136.0.0.0 Safari/537.36"
+    ),
     "Accept": "application/json",
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
     "Accept-Encoding": "gzip, deflate, br",
@@ -57,18 +61,18 @@ class PixivCrawler(BaseCrawler):
         if not pid:
             return CrawlResult(success=False, error="无法提取 Pixiv 作品 ID")
 
-        _RETRIES = 10
+        max_retries = 10
         async with httpx.AsyncClient(headers=_HEADERS, timeout=2.0) as client:
             # 获取作品详情（指数避让重试）
             resp = None
-            for attempt in range(_RETRIES):
+            for attempt in range(max_retries):
                 try:
                     resp = await client.get(_AJAX_URL.format(pid=pid))
                     break
                 except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
-                    if attempt == _RETRIES - 1:
+                    if attempt == max_retries - 1:
                         return CrawlResult(
-                            success=False, error=f"请求超时，已重试 {_RETRIES} 次: {e}"
+                            success=False, error=f"请求超时，已重试 {max_retries} 次: {e}"
                         )
                     wait = 2**attempt
                     logger.warning(
@@ -93,15 +97,15 @@ class PixivCrawler(BaseCrawler):
 
             # 获取图片分页（同样重试）
             pages_resp = None
-            for attempt in range(_RETRIES):
+            for attempt in range(max_retries):
                 try:
                     pages_resp = await client.get(_PAGES_URL.format(pid=pid))
                     pages_resp.raise_for_status()
                     break
                 except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
-                    if attempt == _RETRIES - 1:
+                    if attempt == max_retries - 1:
                         return CrawlResult(
-                            success=False, error=f"获取分页超时，已重试 {_RETRIES} 次: {e}"
+                            success=False, error=f"获取分页超时，已重试 {max_retries} 次: {e}"
                         )
                     wait = 2**attempt
                     logger.warning(

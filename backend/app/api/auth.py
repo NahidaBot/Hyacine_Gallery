@@ -94,7 +94,7 @@ async def telegram_login(body: TelegramAuthRequest, db: AsyncSession = DBDep) ->
     try:
         tg_user: TelegramUser = verify_telegram_login(raw)
     except ValueError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
     result = await db.execute(select(User).where(User.tg_id == tg_user.id))
     user = result.scalar_one_or_none()
@@ -126,8 +126,8 @@ async def get_me(request: Request, db: AsyncSession = DBDep) -> UserResponse:
     token = auth_header[7:]
     try:
         payload = decode_jwt(token)
-    except pyjwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Token 无效或已过期")
+    except pyjwt.InvalidTokenError as e:
+        raise HTTPException(status_code=401, detail="Token 无效或已过期") from e
 
     user_id = int(str(payload["sub"]))
     user = await db.get(User, user_id)
@@ -183,7 +183,7 @@ async def passkey_register_complete(
             body.credential, current_user.webauthn_challenge, body.device_name
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"注册验证失败：{e}")
+        raise HTTPException(status_code=400, detail=f"注册验证失败：{e}") from e
 
     credential = WebAuthnCredential(
         user_id=current_user.id,
@@ -257,7 +257,7 @@ async def passkey_auth_complete(
             body.credential, credential, user.webauthn_challenge
         )
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Passkey 验证失败：{e}")
+        raise HTTPException(status_code=401, detail=f"Passkey 验证失败：{e}") from e
 
     credential.sign_count = new_sign_count
     credential.last_used_at = _now_utc()

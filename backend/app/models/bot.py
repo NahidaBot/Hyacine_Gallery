@@ -27,8 +27,8 @@ class BotPostQueue(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    artwork: Mapped[Artwork] = relationship(back_populates="queue_items")  # type: ignore[name-defined]
-    added_by_user: Mapped[User | None] = relationship(
+    artwork: Mapped[Artwork] = relationship(back_populates="queue_items")  # type: ignore[name-defined]  # noqa: F821
+    added_by_user: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys="[BotPostQueue.added_by_user_id]"
     )  # type: ignore[name-defined]
 

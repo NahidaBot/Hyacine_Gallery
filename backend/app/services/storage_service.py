@@ -52,7 +52,11 @@ def _get_http_client() -> httpx.AsyncClient:
             follow_redirects=True,
             timeout=5.0,
             headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/146.0.0.0 Safari/537.36"
+                ),
             },
         )
     return _http_client
@@ -287,9 +291,9 @@ async def _process_single_image(
         img_record.page_index,
         img_record.url_original,
     )
-    _RETRIES = 10
+    max_retries = 10
     raw_data: bytes = b""
-    for attempt in range(_RETRIES):
+    for attempt in range(max_retries):
         try:
             resp = await client.get(
                 img_record.url_original,
@@ -299,7 +303,7 @@ async def _process_single_image(
             raw_data = resp.content
             break
         except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
-            if attempt == _RETRIES - 1:
+            if attempt == max_retries - 1:
                 raise
             wait = 2**attempt
             logger.warning("图片下载失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e)

@@ -40,7 +40,7 @@ async def require_admin(request: Request) -> None:
     raise HTTPException(status_code=401, detail="未授权")
 
 
-async def get_current_user(request: Request, db: AsyncSession = Depends(get_session)):  # type: ignore[return]
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_session)):  # type: ignore[return]  # noqa: B008
     """从 JWT 解析当前用户；静态 token 或无 token 时返回 None。"""
     from app.models.user import User
 
@@ -67,8 +67,8 @@ async def require_owner(request: Request) -> None:
         payload = decode_jwt(token)
         if payload.get("role") != "owner":
             raise HTTPException(status_code=403, detail="需要站长权限")
-    except pyjwt.InvalidTokenError:
-        raise HTTPException(status_code=403, detail="需要站长权限")
+    except pyjwt.InvalidTokenError as e:
+        raise HTTPException(status_code=403, detail="需要站长权限") from e
 
 
 AdminDep = Depends(require_admin)

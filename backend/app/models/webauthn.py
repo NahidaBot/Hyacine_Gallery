@@ -22,4 +22,4 @@ class WebAuthnCredential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    user: Mapped[User] = relationship(back_populates="credentials")  # type: ignore[name-defined]
+    user: Mapped[User] = relationship(back_populates="credentials")  # type: ignore[name-defined]  # noqa: F821

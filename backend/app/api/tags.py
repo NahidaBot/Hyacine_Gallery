@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("", response_model=TagListResponse)
 async def list_tags(
     db: AsyncSession = DBDep,
-    type: str | None = None,
+    type: str | None = None,  # noqa: A002
 ) -> TagListResponse:
     tags = await tag_service.get_tags(db, type_filter=type)
     data = [

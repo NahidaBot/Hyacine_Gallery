@@ -49,15 +49,15 @@ class Artwork(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    author_ref: Mapped[Author | None] = relationship(back_populates="artworks")  # type: ignore[name-defined]
-    imported_by: Mapped[User | None] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]
+    author_ref: Mapped[Author | None] = relationship(back_populates="artworks")  # type: ignore[name-defined]  # noqa: F821
+    imported_by: Mapped[User | None] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]  # noqa: F821
     sources: Mapped[list[ArtworkSource]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
     )
     post_logs: Mapped[list[BotPostLog]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
     )
-    queue_items: Mapped[list[BotPostQueue]] = relationship(  # type: ignore[name-defined]
+    queue_items: Mapped[list[BotPostQueue]] = relationship(  # type: ignore[name-defined]  # noqa: F821
         back_populates="artwork", cascade="all, delete-orphan"
     )
 
@@ -125,7 +125,7 @@ class Tag(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    alias_of: Mapped[Tag | None] = relationship(remote_side=[id])
+    alias_of: Mapped[Tag | None] = relationship(remote_side=[id])  # noqa: A003
     tag_type: Mapped[TagType | None] = relationship(back_populates="tags")
     artworks: Mapped[list[Artwork]] = relationship(secondary="artwork_tags", back_populates="tags")
 
@@ -156,7 +156,7 @@ class BotPostLog(Base):
     posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     artwork: Mapped[Artwork] = relationship(back_populates="post_logs")
-    posted_by_user: Mapped[User | None] = relationship(
+    posted_by_user: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys="[BotPostLog.posted_by_user_id]"
     )  # type: ignore[name-defined]
 

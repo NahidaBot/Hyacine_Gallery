@@ -441,7 +441,7 @@ async def compute_embeddings(limit: int = 500, db: AsyncSession = DBDep) -> dict
 
 @router.post("/artworks/search-by-image", response_model=list[SimilarArtworkInfo])
 async def search_by_image(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...),  # noqa: B008
     threshold: int = 10,
     db: AsyncSession = DBDep,
 ) -> list[SimilarArtworkInfo]:
@@ -451,7 +451,7 @@ async def search_by_image(
         img = Image.open(io.BytesIO(data))
         phash = str(imagehash.phash(img))
     except Exception as e:
-        raise HTTPException(422, f"无法处理图片: {e}")
+        raise HTTPException(422, f"无法处理图片: {e}") from e
 
     matches = await artwork_service.find_similar_by_phash(db, phash, threshold=threshold)
     results: list[SimilarArtworkInfo] = []
@@ -481,7 +481,7 @@ async def search_by_image(
 
 @router.post("/artworks/reverse-search", response_model=list[ReverseSearchResultSchema])
 async def reverse_search_image(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...),  # noqa: B008
     min_similarity: float = 70.0,
 ) -> list[ReverseSearchResultSchema]:
     """上传图片，通过 SauceNAO / IQDB 反向搜索外部来源。"""

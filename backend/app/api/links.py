@@ -28,9 +28,7 @@ async def list_links(db: AsyncSession = DBDep) -> list[FriendLinkResponse]:
 @admin_router.get("/links", response_model=list[FriendLinkResponse])
 async def admin_list_links(db: AsyncSession = DBDep) -> list[FriendLinkResponse]:
     """管理接口：列出所有友情链接（含禁用）。"""
-    result = await db.execute(
-        select(FriendLink).order_by(FriendLink.sort_order, FriendLink.id)
-    )
+    result = await db.execute(select(FriendLink).order_by(FriendLink.sort_order, FriendLink.id))
     links = result.scalars().all()
     return [FriendLinkResponse.model_validate(lk) for lk in links]
 

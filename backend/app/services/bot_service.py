@@ -129,10 +129,7 @@ def _match_conditions(conditions: dict, artwork: Artwork) -> bool:
         if not set(conditions["tags_all"]).issubset(artwork_tag_names):
             return False
 
-    if "platform" in conditions and artwork.platform != conditions["platform"]:
-        return False
-
-    return True
+    return "platform" not in conditions or artwork.platform == conditions["platform"]
 
 
 async def resolve_channel(

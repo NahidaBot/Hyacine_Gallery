@@ -27,15 +27,15 @@ async def serve_image(path: str) -> FileResponse:
     # 防止路径穿越
     try:
         file_path.resolve().relative_to(Path(settings.storage_local_path).resolve())
-    except ValueError:
-        raise HTTPException(403, "禁止访问")
+    except ValueError as e:
+        raise HTTPException(403, "禁止访问") from e
 
-    _MIME: dict[str, str] = {
+    mime_map: dict[str, str] = {
         ".webp": "image/webp",
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
         ".png": "image/png",
         ".gif": "image/gif",
     }
-    media_type = _MIME.get(file_path.suffix.lower(), "application/octet-stream")
+    media_type = mime_map.get(file_path.suffix.lower(), "application/octet-stream")
     return FileResponse(file_path, media_type=media_type)

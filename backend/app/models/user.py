@@ -20,6 +20,6 @@ class User(Base):
     # 临时存储 WebAuthn challenge（每次发起认证时覆盖写入）
     webauthn_challenge: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
-    credentials: Mapped[list[WebAuthnCredential]] = relationship(  # type: ignore[name-defined]
+    credentials: Mapped[list[WebAuthnCredential]] = relationship(  # type: ignore[name-defined]  # noqa: F821
         back_populates="user", cascade="all, delete-orphan"
     )
