@@ -241,6 +241,22 @@ async def download_and_store_images(
                 exc_info=True,
             )
 
+    # NSFW 自动检测
+    if settings.nsfw_detection_enabled and not artwork.is_nsfw and processed > 0:
+        first_img = sorted(artwork.images, key=lambda i: i.page_index)[0]
+        if first_img.url_original:
+            try:
+                img_data = await download_image_bytes(first_img.url_original)
+                from app.ai.nsfw_detector import detect_nsfw
+
+                score = await detect_nsfw(img_data)
+                logger.info("NSFW 检测: 作品 #%d, score=%.2f", artwork.id, score)
+                if score >= settings.nsfw_threshold:
+                    artwork.is_nsfw = True
+                    logger.info("NSFW 自动标记: 作品 #%d (score=%.2f)", artwork.id, score)
+            except Exception:
+                logger.warning("NSFW 检测失败: 作品 #%d", artwork.id, exc_info=True)
+
     await db.commit()
     logger.info(
         "作品 #%d: 完成 — %d 已处理, %d 已跳过, %d 失败",

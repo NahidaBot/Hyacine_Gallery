@@ -73,6 +73,11 @@ class Settings(BaseSettings):
     ai_auto_tag_on_import: bool = False
     ai_auto_tag_confidence: float = 0.8
 
+    # NSFW 检测
+    nsfw_detection_enabled: bool = False
+    nsfw_detection_provider: str = "llm"  # "llm" 或 "local"
+    nsfw_threshold: float = 0.7
+
     # 调试
     debug: bool = False
 
