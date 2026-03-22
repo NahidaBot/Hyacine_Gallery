@@ -1,4 +1,5 @@
 import type {
+  AdminUser,
   Artwork,
   ArtworkListResponse,
   ArtworkSource,
@@ -7,6 +8,7 @@ import type {
   BotPostLogListResponse,
   BotSetting,
   ImportResponse,
+  PasskeyCredential,
   SimilarArtworkInfo,
   Tag,
   TagListResponse,
@@ -15,9 +17,65 @@ import type {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-function getToken(): string {
+export function getToken(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("admin_token") ?? "";
+  return localStorage.getItem("jwt_token") ?? "";
+}
+
+export function clearToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem("jwt_token");
+}
+
+export function saveToken(token: string): void {
+  if (typeof window !== "undefined") localStorage.setItem("jwt_token", token);
+}
+
+export interface TelegramAuthResult {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+
+/** 通过 Telegram Widget 回调数据登录，返回 JWT。*/
+export async function loginWithTelegram(
+  data: TelegramAuthResult,
+): Promise<{ access_token: string; role: string }> {
+  const res = await fetch(`${API_BASE}/api/auth/telegram`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<{ access_token: string; role: string }>;
+}
+
+/** 验证当前 JWT 并返回用户信息（401 时抛出）。*/
+export async function fetchMe(): Promise<{
+  id: number;
+  tg_id: number | null;
+  tg_username: string;
+  role: string;
+}> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Unauthorized");
+  return res.json();
+}
+
+/** 获取 Telegram bot username（用于初始化 Login Widget）。*/
+export async function fetchAuthConfig(): Promise<{ bot_username: string }> {
+  const res = await fetch(`${API_BASE}/api/auth/config`);
+  if (!res.ok) throw new Error("无法获取认证配置");
+  return res.json();
 }
 
 async function adminFetch<T>(
@@ -28,7 +86,7 @@ async function adminFetch<T>(
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-Admin-Token": getToken(),
+      Authorization: `Bearer ${getToken()}`,
       ...init?.headers,
     },
   });
@@ -147,7 +205,7 @@ export async function adminSearchByImage(
     `${API_BASE}/api/admin/artworks/search-by-image?threshold=${threshold}`,
     {
       method: "POST",
-      headers: { "X-Admin-Token": getToken() },
+      headers: { Authorization: `Bearer ${getToken()}` },
       body: formData,
     },
   );
@@ -291,6 +349,199 @@ export async function adminDeleteTagType(id: number): Promise<void> {
   await adminFetch<unknown>(`/api/admin/tag-types/${id}`, {
     method: "DELETE",
   });
+}
+
+// ── Users（站长专属） ──
+
+export async function adminFetchUsers(): Promise<AdminUser[]> {
+  return adminFetch<AdminUser[]>("/api/admin/users");
+}
+
+export async function adminCreateUser(data: {
+  tg_id?: number | null;
+  tg_username?: string;
+  email?: string | null;
+  role?: string;
+}): Promise<AdminUser> {
+  return adminFetch<AdminUser>("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminUpdateUser(
+  id: number,
+  data: { tg_username?: string; email?: string | null; role?: string },
+): Promise<AdminUser> {
+  return adminFetch<AdminUser>(`/api/admin/users/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteUser(id: number): Promise<void> {
+  await adminFetch<unknown>(`/api/admin/users/${id}`, { method: "DELETE" });
+}
+
+export async function adminFetchUserCredentials(
+  userId: number,
+): Promise<PasskeyCredential[]> {
+  return adminFetch<PasskeyCredential[]>(
+    `/api/admin/users/${userId}/credentials`,
+  );
+}
+
+export async function adminDeleteUserCredential(
+  userId: number,
+  credId: number,
+): Promise<void> {
+  await adminFetch<unknown>(
+    `/api/admin/users/${userId}/credentials/${credId}`,
+    { method: "DELETE" },
+  );
+}
+
+// ── Passkey（当前用户） ──
+
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let str = "";
+  for (const byte of bytes) str += String.fromCharCode(byte);
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function base64urlToBuffer(b64: string): ArrayBuffer {
+  const padded = b64.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+export async function passkeyRegisterBegin(): Promise<Record<string, unknown>> {
+  return adminFetch<Record<string, unknown>>(
+    "/api/auth/passkey/register/begin",
+    { method: "POST" },
+  );
+}
+
+export async function passkeyRegisterComplete(
+  credential: PublicKeyCredential,
+  deviceName: string,
+): Promise<void> {
+  const response = credential.response as AuthenticatorAttestationResponse;
+  const credentialJson = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    response: {
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+      attestationObject: bufferToBase64url(response.attestationObject),
+    },
+    type: credential.type,
+  };
+  await adminFetch<unknown>("/api/auth/passkey/register/complete", {
+    method: "POST",
+    body: JSON.stringify({ credential: credentialJson, device_name: deviceName }),
+  });
+}
+
+export async function passkeyAuthBegin(
+  identifier: string,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_BASE}/api/auth/passkey/auth/begin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<Record<string, unknown>>;
+}
+
+export async function passkeyAuthComplete(
+  credential: PublicKeyCredential,
+  identifier: string,
+): Promise<{ access_token: string; role: string }> {
+  const response = credential.response as AuthenticatorAssertionResponse;
+  const credentialJson = {
+    id: credential.id,
+    rawId: bufferToBase64url(credential.rawId),
+    response: {
+      clientDataJSON: bufferToBase64url(response.clientDataJSON),
+      authenticatorData: bufferToBase64url(response.authenticatorData),
+      signature: bufferToBase64url(response.signature),
+      userHandle: response.userHandle
+        ? bufferToBase64url(response.userHandle)
+        : null,
+    },
+    type: credential.type,
+  };
+  const res = await fetch(`${API_BASE}/api/auth/passkey/auth/complete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential: credentialJson, identifier }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<{ access_token: string; role: string }>;
+}
+
+/** 将后端返回的 options（challenge/ids 为 base64url string）转换为浏览器 API 所需的 ArrayBuffer 格式。*/
+export function prepareAuthOptions(
+  options: Record<string, unknown>,
+): PublicKeyCredentialRequestOptions {
+  const challenge = base64urlToBuffer(options.challenge as string);
+  const allowCredentials = (
+    (options.allowCredentials as Array<Record<string, unknown>>) ?? []
+  ).map((c) => ({
+    type: "public-key" as const,
+    id: base64urlToBuffer(c.id as string),
+  }));
+  return {
+    challenge,
+    allowCredentials,
+    timeout: (options.timeout as number) ?? 60000,
+    userVerification:
+      (options.userVerification as UserVerificationRequirement) ?? "preferred",
+    rpId: options.rpId as string | undefined,
+  };
+}
+
+/** 将后端返回的注册 options 转换为浏览器 API 所需格式。*/
+export function prepareCreationOptions(
+  options: Record<string, unknown>,
+): PublicKeyCredentialCreationOptions {
+  const rp = options.rp as Record<string, unknown>;
+  const user = options.user as Record<string, unknown>;
+  const challenge = base64urlToBuffer(options.challenge as string);
+  const pubKeyCredParams = (
+    options.pubKeyCredParams as Array<Record<string, unknown>>
+  ).map((p) => ({ type: "public-key" as const, alg: p.alg as number }));
+  const excludeCredentials = (
+    (options.excludeCredentials as Array<Record<string, unknown>>) ?? []
+  ).map((c) => ({
+    type: "public-key" as const,
+    id: base64urlToBuffer(c.id as string),
+  }));
+  return {
+    rp: { id: rp.id as string | undefined, name: rp.name as string },
+    user: {
+      id: base64urlToBuffer(user.id as string),
+      name: user.name as string,
+      displayName: user.displayName as string,
+    },
+    challenge,
+    pubKeyCredParams,
+    timeout: (options.timeout as number) ?? 60000,
+    excludeCredentials,
+    authenticatorSelection: options.authenticatorSelection as
+      | AuthenticatorSelectionCriteria
+      | undefined,
+  };
 }
 
 // ── Post Logs ──

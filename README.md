@@ -9,7 +9,6 @@
 | 后端 | Python 3.14+, FastAPI, SQLAlchemy (async), Alembic, uv |
 | 前端 | Next.js 16 (App Router), TypeScript, Tailwind CSS 4, React 19, pnpm |
 | 数据库 | SQLite (开发) / PostgreSQL 16 (生产) |
-| 缓存/队列 | Redis 7 |
 | Bot | python-telegram-bot |
 | 爬虫 | Pixiv API, fxtwitter API, gallery-dl (通用回退) |
 | 部署 | Docker Compose |
@@ -182,3 +181,15 @@ pnpm dev          # 开发服务器
 pnpm build        # 生产构建
 pnpm lint         # ESLint 检查
 ```
+
+## 许可证
+
+本项目采用双重许可：
+
+| 用途 | 适用许可证 |
+|------|-----------|
+| 个人学习、研究、非商业部署 | [PolyForm Noncommercial License 1.0.0](LICENSE) |
+| 商业用途（含广告盈利、付费服务等） | [商业许可证](LICENSE-COMMERCIAL.md)（需单独获取） |
+
+> **商业用途须获得额外授权**，即使公开了修改后的源码亦然。
+> 如需商业授权，请通过 [Issues](https://github.com/hyacine/hyacine_gallery/issues) 联系。

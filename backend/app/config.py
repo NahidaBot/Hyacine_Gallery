@@ -7,9 +7,6 @@ class Settings(BaseSettings):
     # 数据库
     database_url: str = "sqlite+aiosqlite:///./hyacine_gallery.db"
 
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
-
     # 存储
     storage_backend: str = "local"  # "local" 或 "s3"
     storage_local_path: str = "./uploads"
@@ -34,8 +31,21 @@ class Settings(BaseSettings):
     admin_panel_slug: str = "change-me-to-random-string"
     admin_token: str = "change-me-to-a-secure-token"
 
+    # Telegram OAuth（与 bot 进程共享同一 env var TELEGRAM_BOT_TOKEN）
+    telegram_bot_token: str = ""      # 用于验证 Login Widget HMAC 签名
+    telegram_bot_username: str = ""   # Login Widget 需要的 bot 用户名（不含 @）
+
+    # JWT
+    jwt_secret: str = "change-me-to-a-secure-jwt-secret"
+    jwt_expire_hours: int = 720  # 30 天
+
+    # WebAuthn（Passkeys）
+    webauthn_rp_id: str = "localhost"           # 生产环境改为真实域名（不含 scheme/port）
+    webauthn_rp_name: str = "Hyacine Gallery"
+    webauthn_origin: str = "http://localhost"  # 前端 origin（含端口），生产改为 https://...
+
     # CORS
-    backend_cors_origins: list[str] = ["http://localhost:3000"]
+    backend_cors_origins: list[str] = ["http://localhost:3000","http://127.0.0.1:3000","http://127.0.0.1","http://localhost"]
 
     # 调试
     debug: bool = False

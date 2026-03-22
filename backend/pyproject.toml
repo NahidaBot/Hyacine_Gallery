@@ -13,12 +13,13 @@ dependencies = [
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
     "httpx[http2]>=0.28",
-    "redis>=5.2",
     "pillow>=11.1",
     "python-multipart>=0.0.18",
     "gallery-dl>=1.29",
     "imagehash>=4.3",
     "boto3>=1.42.73",
+    "pyjwt>=2.9",
+    "webauthn>=2.3",
 ]
 
 [project.optional-dependencies]

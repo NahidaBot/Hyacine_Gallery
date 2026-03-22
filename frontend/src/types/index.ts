@@ -118,6 +118,29 @@ export interface BotSetting {
   description: string;
 }
 
+// ── Users ──
+
+export interface AdminUser {
+  id: number;
+  tg_id: number | null;
+  tg_username: string;
+  email: string | null;
+  role: "owner" | "admin";
+  created_at: string;
+  last_login_at: string | null;
+  import_count: number;
+  post_count: number;
+}
+
+export interface PasskeyCredential {
+  id: number;
+  credential_id: string;
+  device_name: string;
+  sign_count: number;
+  created_at: string;
+  last_used_at: string | null;
+}
+
 // ── Tag Types ──
 
 export interface TagType {

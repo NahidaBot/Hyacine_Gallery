@@ -1,3 +1,4 @@
+from app.models.author import Author
 from app.models.artwork import (
     Artwork,
     ArtworkImage,
@@ -8,8 +9,11 @@ from app.models.artwork import (
     TagType,
 )
 from app.models.bot import BotChannel, BotSetting
+from app.models.user import User
+from app.models.webauthn import WebAuthnCredential
 
 __all__ = [
+    "Author",
     "Artwork",
     "ArtworkImage",
     "ArtworkSource",
@@ -19,4 +23,6 @@ __all__ = [
     "BotSetting",
     "Tag",
     "TagType",
+    "User",
+    "WebAuthnCredential",
 ]
