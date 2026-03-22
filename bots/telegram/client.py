@@ -86,6 +86,50 @@ class ArtworkData:
 
 
 @dataclass
+class SimilarArtwork:
+    artwork_id: int
+    distance: int
+    platform: str
+    pid: str
+    title: str
+    thumb_url: str
+
+    @classmethod
+    def from_response(cls, data: dict) -> SimilarArtwork:
+        return cls(
+            artwork_id=data["artwork_id"],
+            distance=data["distance"],
+            platform=data["platform"],
+            pid=data["pid"],
+            title=data.get("title", ""),
+            thumb_url=data.get("thumb_url", ""),
+        )
+
+
+@dataclass
+class ReverseSearchResult:
+    source_url: str
+    similarity: float
+    platform: str
+    title: str
+    author: str
+    thumb_url: str
+    provider: str
+
+    @classmethod
+    def from_response(cls, data: dict) -> ReverseSearchResult:
+        return cls(
+            source_url=data["source_url"],
+            similarity=data["similarity"],
+            platform=data["platform"],
+            title=data.get("title", ""),
+            author=data.get("author", ""),
+            thumb_url=data.get("thumb_url", ""),
+            provider=data.get("provider", ""),
+        )
+
+
+@dataclass
 class QueueItem:
     id: int
     artwork_id: int
@@ -218,6 +262,30 @@ class GalleryClient:
             (ArtworkData.from_response(r["artwork"]), r["score"])
             for r in data.get("results", [])
         ]
+
+    async def search_by_image(
+        self, image_data: bytes, threshold: int = 10
+    ) -> list[SimilarArtwork]:
+        """上传图片到后端 pHash 搜索端点。"""
+        resp = await self.http.post(
+            "/api/admin/artworks/search-by-image",
+            files={"file": ("search.jpg", image_data, "image/jpeg")},
+            data={"threshold": str(threshold)},
+        )
+        resp.raise_for_status()
+        return [SimilarArtwork.from_response(r) for r in resp.json()]
+
+    async def reverse_search_image(
+        self, image_data: bytes, min_similarity: float = 70.0
+    ) -> list[ReverseSearchResult]:
+        """上传图片到后端外部逆向搜索端点。"""
+        resp = await self.http.post(
+            "/api/admin/artworks/reverse-search",
+            files={"file": ("search.jpg", image_data, "image/jpeg")},
+            data={"min_similarity": str(min_similarity)},
+        )
+        resp.raise_for_status()
+        return [ReverseSearchResult.from_response(r) for r in resp.json()]
 
     async def import_artwork(self, url: str, tags: list[str] | None = None) -> ArtworkData:
         """调用后端导入接口：抓取 URL -> 创建作品。"""

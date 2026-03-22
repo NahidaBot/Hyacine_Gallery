@@ -21,6 +21,7 @@ from app.schemas.artwork import (
     ArtworkSourceResponse,
     ArtworkUpdate,
     ImportResponse,
+    ReverseSearchResultSchema,
     SimilarArtworkInfo,
 )
 from app.schemas.author import AuthorCreate, AuthorResponse, AuthorUpdate
@@ -387,6 +388,40 @@ async def search_by_image(
                 )
             )
     return results
+
+
+# --- 以图搜图 (外部反向搜索) ---
+
+
+@router.post("/artworks/reverse-search", response_model=list[ReverseSearchResultSchema])
+async def reverse_search_image(
+    file: UploadFile = File(...),
+    min_similarity: float = 70.0,
+) -> list[ReverseSearchResultSchema]:
+    """上传图片，通过 SauceNAO / IQDB 反向搜索外部来源。"""
+    from app.services.reverse_search_service import reverse_search
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(422, "未收到图片数据")
+
+    results = await reverse_search(
+        data,
+        api_key=settings.saucenao_api_key,
+        min_similarity=min_similarity,
+    )
+    return [
+        ReverseSearchResultSchema(
+            source_url=r.source_url,
+            similarity=r.similarity,
+            platform=r.platform,
+            title=r.title,
+            author=r.author,
+            thumb_url=r.thumb_url,
+            provider=r.provider,
+        )
+        for r in results
+    ]
 
 
 # --- 作品来源 ---

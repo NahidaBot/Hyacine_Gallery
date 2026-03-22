@@ -1,8 +1,9 @@
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from handlers.artwork import import_command, post_command, random_command, search_command
 from handlers.basic import help_command, ping_command, start_command
 from handlers.original import TELEGRAM_SYSTEM_USER_ID, channel_post_handler
+from handlers.photo import callback_handler, photo_handler
 
 
 def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
@@ -22,3 +23,13 @@ def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
             block=False,
         )
     )
+
+    # 图片消息处理（搜图 + 转发提取 + 溯源），排除系统用户
+    app.add_handler(
+        MessageHandler(
+            filters.PHOTO & ~filters.User(TELEGRAM_SYSTEM_USER_ID),
+            photo_handler,
+        )
+    )
+    # InlineKeyboard 回调处理
+    app.add_handler(CallbackQueryHandler(callback_handler))

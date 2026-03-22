@@ -66,6 +66,9 @@ class Settings(BaseSettings):
     ai_embedding_model: str = "BAAI/bge-m3"
     ai_embedding_dimension: int = 1024
 
+    # 以图搜图
+    saucenao_api_key: str = ""
+
     # 调试
     debug: bool = False
 

@@ -136,3 +136,13 @@ class SemanticSearchResult(BaseModel):
 class SemanticSearchResponse(BaseModel):
     results: list[SemanticSearchResult]
     query: str
+
+
+class ReverseSearchResultSchema(BaseModel):
+    source_url: str
+    similarity: float
+    platform: str
+    title: str = ""
+    author: str = ""
+    thumb_url: str = ""
+    provider: str = ""

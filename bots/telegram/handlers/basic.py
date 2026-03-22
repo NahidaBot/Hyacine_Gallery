@@ -20,7 +20,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/post &lt;id&gt; — 将已有作品发布到频道\n"
         "/import &lt;url&gt; [#tag1 #tag2] — 仅导入（别名）\n"
         "/random — 随机获取一个作品\n"
-        "/help — 显示此帮助信息"
+        "/help — 显示此帮助信息\n"
+        "\n"
+        "发送图片可搜索相似作品"
     )
     if update.message:
         await update.message.reply_text(text, parse_mode="HTML")
