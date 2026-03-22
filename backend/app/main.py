@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -8,6 +10,7 @@ from app.config import settings
 from app.api.images import router as images_router
 from app.api.router import api_router
 from app.database import async_session
+from app.services.cleanup_service import raw_cleanup_loop
 from app.services.tag_service import seed_default_tag_types
 
 
@@ -16,8 +19,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 启动时初始化默认标签类型
     async with async_session() as db:
         await seed_default_tag_types(db)
+    # 启动 raw 文件过期清理后台任务
+    cleanup_task = asyncio.create_task(raw_cleanup_loop())
     yield
-    # 关闭
+    # 关闭时取消清理任务
+    cleanup_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await cleanup_task
 
 
 app = FastAPI(

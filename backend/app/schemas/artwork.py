@@ -8,6 +8,8 @@ class ArtworkImageResponse(BaseModel):
     page_index: int
     url_original: str
     url_thumb: str
+    url_raw: str = ""
+    raw_expires_at: datetime | None = None
     width: int
     height: int
     file_size: int

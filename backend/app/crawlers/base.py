@@ -33,3 +33,10 @@ class BaseCrawler(ABC):
     async def fetch(self, url: str) -> CrawlResult:
         """从给定 URL 抓取作品元数据和图片链接。"""
         ...
+
+    def extract_identity(self, url: str) -> tuple[str, str] | None:
+        """从 URL 直接提取 (platform, pid)，无需网络请求。
+        子类若能从 URL 解析出唯一标识则重写此方法；
+        无法静态提取的爬虫（如 gallery-dl）保持默认返回 None。
+        """
+        return None

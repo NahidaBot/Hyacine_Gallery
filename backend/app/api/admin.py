@@ -7,7 +7,7 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import AdminDep, DBDep
-from app.crawlers import crawl
+from app.crawlers import crawl, try_extract_identity
 from app.schemas.artwork import (
     ArtworkAddSourceRequest,
     ArtworkCreate,
@@ -67,6 +67,17 @@ async def import_artwork(
     data: ArtworkImportRequest, db: AsyncSession = DBDep
 ) -> ImportResponse:
     """抓取 URL，通过 platform+pid 和 pHash 去重，创建或合并。"""
+    # 快速路径：若能从 URL 直接提取 identity，先查 DB，命中则跳过爬虫
+    identity = try_extract_identity(data.url)
+    if identity:
+        platform, pid = identity
+        cached = await artwork_service.get_artwork_by_pid(db, platform, pid)
+        if cached:
+            return ImportResponse(
+                artwork=ArtworkResponse.model_validate(cached),
+                message="已存在（缓存命中，跳过爬虫）。",
+            )
+
     result = await crawl(data.url)
     if not result.success:
         raise HTTPException(422, f"抓取失败: {result.error}")

@@ -66,6 +66,9 @@ class ArtworkImage(Base):
     storage_path: Mapped[str] = mapped_column(String(1024), default="")
     telegram_file_id: Mapped[str] = mapped_column(String(255), default="")
     phash: Mapped[str] = mapped_column(String(16), default="", index=True)
+    url_raw: Mapped[str] = mapped_column(String(2048), default="")
+    storage_path_raw: Mapped[str] = mapped_column(String(1024), default="")
+    raw_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     artwork: Mapped["Artwork"] = relationship(back_populates="images")
 

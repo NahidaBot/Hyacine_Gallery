@@ -6,12 +6,15 @@
 存储布局:
     <platform>/<pid>/original/<page_index>.webp   — WebP 压缩的原图
     <platform>/<pid>/thumb/<page_index>.webp       — 缩略图（长边 ≤ thumb_max_edge）
+    <platform>/<pid>/raw/<page_index>.<ext>        — 原始文件（TTL 控制，默认保留 7 天）
 """
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -44,7 +47,7 @@ def _get_http_client() -> httpx.AsyncClient:
     if _http_client is None or _http_client.is_closed:
         _http_client = httpx.AsyncClient(
             follow_redirects=True,
-            timeout=60.0,
+            timeout=5.0,
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
             },
@@ -66,6 +69,24 @@ def _download_headers(url: str) -> dict[str, str]:
 def _storage_key(platform: str, pid: str, variant: str, page_index: int) -> str:
     """构建存储键，如 'pixiv/12345/original/0.webp'。"""
     return f"{platform}/{pid}/{variant}/{page_index}.webp"
+
+
+def _raw_storage_key(platform: str, pid: str, page_index: int, ext: str) -> str:
+    """构建 raw 存储键，如 'pixiv/12345/raw/0.jpg'。"""
+    return f"{platform}/{pid}/raw/{page_index}.{ext}"
+
+
+def _detect_ext(data: bytes) -> str:
+    """从魔术字节识别图片格式，回退到 bin。"""
+    if data[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if data[:4] == b"\x89PNG":
+        return "png"
+    if data[8:12] == b"WEBP":
+        return "webp"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    return "bin"
 
 
 def _process_image(
@@ -104,13 +125,13 @@ async def _save_local(key: str, data: bytes) -> tuple[str, str]:
     return str(path), public_url
 
 
-async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
+async def _save_s3(key: str, data: bytes, content_type: str = "image/webp") -> tuple[str, str]:
     """上传字节到 S3 兼容存储。返回 (s3_key, public_url)。"""
     try:
         import boto3
         from botocore.config import Config as BotoConfig
     except ImportError as e:
-        raise RuntimeError("S3 存储需要 boto3: pip install boto3") from e
+        raise RuntimeError("S3 存储需要 boto3") from e
 
     s3 = boto3.client(
         "s3",
@@ -124,7 +145,7 @@ async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
         Bucket=settings.s3_bucket,
         Key=key,
         Body=data,
-        ContentType="image/webp",
+        ContentType=content_type,
     )
 
     if settings.s3_public_url:
@@ -134,10 +155,10 @@ async def _save_s3(key: str, data: bytes) -> tuple[str, str]:
     return key, public_url
 
 
-async def _save(key: str, data: bytes) -> tuple[str, str]:
+async def _save(key: str, data: bytes, content_type: str = "image/webp") -> tuple[str, str]:
     """保存到已配置的后端。返回 (storage_path, public_url)。"""
     if settings.storage_backend == "s3":
-        return await _save_s3(key, data)
+        return await _save_s3(key, data, content_type)
     return await _save_local(key, data)
 
 
@@ -224,12 +245,40 @@ async def _process_single_image(
         "  正在下载第 %d 页: %s",
         img_record.page_index, img_record.url_original,
     )
-    resp = await client.get(img_record.url_original, headers=_download_headers(img_record.url_original))
-    resp.raise_for_status()
-    raw_data = resp.content
+    _RETRIES = 10
+    raw_data: bytes = b""
+    for attempt in range(_RETRIES):
+        try:
+            resp = await client.get(
+                img_record.url_original,
+                headers=_download_headers(img_record.url_original),
+            )
+            resp.raise_for_status()
+            raw_data = resp.content
+            break
+        except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
+            if attempt == _RETRIES - 1:
+                raise
+            wait = 2 ** attempt
+            logger.warning("图片下载失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e)
+            await asyncio.sleep(wait)
     logger.info(
         "  已下载 %s (%s)", img_record.url_original, _human_size(len(raw_data)),
     )
+
+    # 存储原始文件（TTL 控制）
+    if settings.raw_ttl_days > 0:
+        ext = _detect_ext(raw_data)
+        raw_key = _raw_storage_key(artwork.platform, artwork.pid, img_record.page_index, ext)
+        mime = f"image/{ext}" if ext != "bin" else "application/octet-stream"
+        raw_storage_path, raw_url = await _save(raw_key, raw_data, content_type=mime)
+        img_record.storage_path_raw = raw_storage_path
+        img_record.url_raw = raw_url
+        img_record.raw_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.raw_ttl_days)
+        logger.debug(
+            "  已保存原始文件: %s (%s, 过期: %s)",
+            raw_key, _human_size(len(raw_data)), img_record.raw_expires_at.date(),
+        )
 
     # 处理原图 → WebP
     original_key = _storage_key(artwork.platform, artwork.pid, "original", img_record.page_index)

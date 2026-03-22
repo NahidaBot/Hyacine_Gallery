@@ -30,6 +30,10 @@ class TwitterCrawler(BaseCrawler):
     def match(self, url: str) -> bool:
         return _extract_info(url) is not None
 
+    def extract_identity(self, url: str) -> tuple[str, str] | None:
+        info = _extract_info(url)
+        return ("twitter", info[1]) if info else None
+
     async def fetch(self, url: str) -> CrawlResult:
         info = _extract_info(url)
         if not info:

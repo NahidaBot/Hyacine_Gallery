@@ -41,6 +41,10 @@ class MiYouSheCrawler(BaseCrawler):
     def match(self, url: str) -> bool:
         return _PATTERN.search(url) is not None
 
+    def extract_identity(self, url: str) -> tuple[str, str] | None:
+        m = _PATTERN.search(url)
+        return ("miyoushe", m.group(1)) if m else None
+
     async def fetch(self, url: str) -> CrawlResult:
         m = _PATTERN.search(url)
         if not m:

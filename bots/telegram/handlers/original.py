@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import os
+from urllib.parse import urlparse
 
 from telegram import InputFile, InputMediaDocument, MessageOriginChannel, Update
 from telegram.ext import ContextTypes
@@ -20,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 # Telegram 系统用户 ID，用于将频道帖子转发到评论群
 TELEGRAM_SYSTEM_USER_ID = 777000
+
+
+def _ext_from_url(url: str) -> str:
+    """从 URL 路径中提取文件扩展名（含点号），无法识别时返回空字符串。"""
+    _, ext = os.path.splitext(urlparse(url).path)
+    return ext
 
 
 async def channel_post_handler(
@@ -56,12 +64,19 @@ async def channel_post_handler(
 
     client: GalleryClient = context.bot_data["gallery_client"]
 
+    # 优先使用 raw 原始文件，无 raw 时降级到 WebP original
+    raw_urls = artwork.raw_image_urls
+    effective_urls = [r if r else w for r, w in zip(raw_urls, urls)]
+
     # 以文档形式分批发送原图（Telegram 限制每批 10 张）
-    for batch_start in range(0, len(urls), 10):
-        batch_urls = urls[batch_start : batch_start + 10]
+    for batch_start in range(0, len(effective_urls), 10):
+        batch_urls = effective_urls[batch_start : batch_start + 10]
         batch_bytes = list(await asyncio.gather(*[client.download_image(u) for u in batch_urls]))
         batch_files = [
-            InputFile(io.BytesIO(data), filename=f"{artwork.pid} - {batch_start + i}.jpg")
+            InputFile(
+                io.BytesIO(data),
+                filename=f"{artwork.pid}-{batch_start + i}{_ext_from_url(batch_urls[i])}",
+            )
             for i, data in enumerate(batch_bytes)
         ]
         if len(batch_files) == 1:

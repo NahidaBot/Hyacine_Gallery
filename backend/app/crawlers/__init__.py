@@ -8,7 +8,7 @@ from app.crawlers.miyoushe import MiYouSheCrawler
 from app.crawlers.pixiv import PixivCrawler
 from app.crawlers.twitter import TwitterCrawler
 
-__all__ = ["BaseCrawler", "CrawlResult", "crawl"]
+__all__ = ["BaseCrawler", "CrawlResult", "crawl", "try_extract_identity"]
 
 # 有序列表：第一个匹配的爬虫生效，GalleryDL 作为兜底放在最后
 _CRAWLERS: list[BaseCrawler] = [
@@ -17,6 +17,16 @@ _CRAWLERS: list[BaseCrawler] = [
     MiYouSheCrawler(),
     GalleryDLCrawler(),
 ]
+
+
+def try_extract_identity(url: str) -> tuple[str, str] | None:
+    """从 URL 直接提取 (platform, pid)，无需网络请求。
+    第一个匹配且能提取的爬虫返回结果；无法静态提取（如 gallery-dl）则返回 None。
+    """
+    for crawler in _CRAWLERS:
+        if crawler.match(url):
+            return crawler.extract_identity(url)
+    return None
 
 
 async def crawl(url: str) -> CrawlResult:

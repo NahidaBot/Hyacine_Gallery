@@ -13,6 +13,7 @@ class ImageData:
     page_index: int
     url_original: str
     url_thumb: str
+    url_raw: str = ""
     width: int = 0
     height: int = 0
 
@@ -45,6 +46,7 @@ class ArtworkData:
                 page_index=img["page_index"],
                 url_original=img["url_original"],
                 url_thumb=img["url_thumb"],
+                url_raw=img.get("url_raw", ""),
                 width=img.get("width", 0),
                 height=img.get("height", 0),
             )
@@ -74,6 +76,11 @@ class ArtworkData:
     @property
     def image_urls(self) -> list[str]:
         return [img.url_original for img in sorted(self.images, key=lambda i: i.page_index)]
+
+    @property
+    def raw_image_urls(self) -> list[str]:
+        """返回各页的 raw 原始文件 URL，空串表示该页无 raw 文件（已过期或未存储）。"""
+        return [img.url_raw for img in sorted(self.images, key=lambda i: i.page_index)]
 
 
 @dataclass
@@ -106,7 +113,7 @@ class GalleryClient:
         self.http = httpx.AsyncClient(
             base_url=base_url,
             headers={"X-Admin-Token": admin_token},
-            timeout=60.0,
+            timeout=httpx.Timeout(connect=10.0, read=300.0, write=30.0, pool=10.0),
         )
 
     async def get_artwork(self, artwork_id: int) -> ArtworkData | None:

@@ -30,4 +30,12 @@ async def serve_image(path: str) -> FileResponse:
     except ValueError:
         raise HTTPException(403, "禁止访问")
 
-    return FileResponse(file_path, media_type="image/webp")
+    _MIME: dict[str, str] = {
+        ".webp": "image/webp",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+    }
+    media_type = _MIME.get(file_path.suffix.lower(), "application/octet-stream")
+    return FileResponse(file_path, media_type=media_type)

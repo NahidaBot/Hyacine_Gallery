@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # 图片处理
     thumb_max_edge: int = 1536
     webp_quality: int = 80
+    raw_ttl_days: int = 7  # raw 原始文件保留天数，0 表示禁用 raw 存储
 
     # 后端公开 URL（用于为前端构建绝对图片 URL）
     backend_url: str = "http://localhost:8000"
