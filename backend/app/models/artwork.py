@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -23,6 +24,7 @@ class Artwork(Base):
     platform: Mapped[str] = mapped_column(String(50), index=True)
     pid: Mapped[str] = mapped_column(String(255), index=True)
     title: Mapped[str] = mapped_column(String(500), default="")
+    title_zh: Mapped[str] = mapped_column(String(500), default="")
     author: Mapped[str] = mapped_column(String(255), default="")
     author_id: Mapped[str] = mapped_column(String(255), default="")
     source_url: Mapped[str] = mapped_column(String(2048), default="")
@@ -125,9 +127,7 @@ class Tag(Base):
 
     alias_of: Mapped[Tag | None] = relationship(remote_side=[id])
     tag_type: Mapped[TagType | None] = relationship(back_populates="tags")
-    artworks: Mapped[list[Artwork]] = relationship(
-        secondary="artwork_tags", back_populates="tags"
-    )
+    artworks: Mapped[list[Artwork]] = relationship(secondary="artwork_tags", back_populates="tags")
 
 
 class ArtworkTag(Base):
@@ -159,3 +159,16 @@ class BotPostLog(Base):
     posted_by_user: Mapped[User | None] = relationship(
         foreign_keys="[BotPostLog.posted_by_user_id]"
     )  # type: ignore[name-defined]
+
+
+class ArtworkEmbedding(Base):
+    __tablename__ = "artwork_embeddings"
+
+    artwork_id: Mapped[int] = mapped_column(
+        ForeignKey("artworks.id", ondelete="CASCADE"), primary_key=True
+    )
+    text_hash: Mapped[str] = mapped_column(String(64), default="")
+    embedding: Mapped[bytes] = mapped_column(LargeBinary)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

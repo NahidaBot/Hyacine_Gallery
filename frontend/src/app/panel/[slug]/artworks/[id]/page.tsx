@@ -26,6 +26,7 @@ export default function ArtworkEditPage() {
 
   // 表单状态
   const [title, setTitle] = useState("");
+  const [titleZh, setTitleZh] = useState("");
   const [author, setAuthor] = useState("");
   const [isNsfw, setIsNsfw] = useState(false);
   const [isAi, setIsAi] = useState(false);
@@ -47,6 +48,7 @@ export default function ArtworkEditPage() {
       const data = await adminFetchArtwork(artworkId);
       setArtwork(data);
       setTitle(data.title);
+      setTitleZh(data.title_zh);
       setAuthor(data.author);
       setIsNsfw(data.is_nsfw);
       setIsAi(data.is_ai);
@@ -72,6 +74,7 @@ export default function ArtworkEditPage() {
         .filter(Boolean);
       const updated = await adminUpdateArtwork(artworkId, {
         title,
+        title_zh: titleZh,
         author,
         is_nsfw: isNsfw,
         is_ai: isAi,
@@ -317,6 +320,16 @@ export default function ArtworkEditPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">中文标题</label>
+          <input
+            type="text"
+            value={titleZh}
+            onChange={(e) => setTitleZh(e.target.value)}
+            className={inputCls}
+            placeholder="AI 自动翻译或手动填写"
           />
         </div>
         <div>

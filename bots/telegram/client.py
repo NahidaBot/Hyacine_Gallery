@@ -31,6 +31,7 @@ class ArtworkData:
     platform: str
     pid: str
     title: str
+    title_zh: str
     author: str
     source_url: str
     is_nsfw: bool
@@ -61,6 +62,7 @@ class ArtworkData:
             platform=data["platform"],
             pid=data["pid"],
             title=data["title"],
+            title_zh=data.get("title_zh", ""),
             author=data["author"],
             source_url=data["source_url"],
             is_nsfw=data["is_nsfw"],
@@ -202,6 +204,20 @@ class GalleryClient:
         data = resp.json()
         artworks = [ArtworkData.from_response(a) for a in data["data"]]
         return artworks, data["total"]
+
+    async def semantic_search(
+        self, query: str, top_k: int = 5
+    ) -> list[tuple[ArtworkData, float]]:
+        """语义搜索，返回 (artwork, score) 列表。"""
+        resp = await self.http.get(
+            "/api/artworks/search", params={"q": query, "top_k": top_k}
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return [
+            (ArtworkData.from_response(r["artwork"]), r["score"])
+            for r in data.get("results", [])
+        ]
 
     async def import_artwork(self, url: str, tags: list[str] | None = None) -> ArtworkData:
         """调用后端导入接口：抓取 URL -> 创建作品。"""

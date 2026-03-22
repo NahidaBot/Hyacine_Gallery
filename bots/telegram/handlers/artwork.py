@@ -73,7 +73,7 @@ def format_caption(artwork: ArtworkData, tail_text: str = "") -> str:
     """为作品生成 Telegram 格式的图片说明。"""
     parts: list[str] = []
 
-    title = artwork.title or "无题"
+    title = artwork.title_zh or artwork.title or "无题"
     if artwork.author:
         parts.append(f"<b>{title}</b> by <b>{artwork.author}</b>")
     else:
@@ -284,6 +284,35 @@ async def _log_post(
 
 
 # ── 命令处理器 ──────────────────────────────────────────────────────
+
+
+async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """处理 /search — 语义搜索作品。"""
+    message = update.effective_message
+    if not message or not context.args:
+        if message:
+            await message.reply_text("用法: /search <关键词>")
+        return
+
+    query = " ".join(context.args)
+    client = _get_client(context)
+
+    try:
+        results = await client.semantic_search(query, top_k=5)
+    except Exception:
+        logger.exception("语义搜索失败")
+        await message.reply_text("搜索失败，请稍后再试。")
+        return
+
+    if not results:
+        await message.reply_text(f"未找到与「{query}」相关的作品。")
+        return
+
+    lines = [f"🔍 搜索「{query}」的结果：\n"]
+    for artwork, score in results:
+        display_title = artwork.title_zh or artwork.title or artwork.pid
+        lines.append(f"• <b>{display_title}</b> (#{artwork.id}, 相似度 {score:.2f})")
+    await message.reply_text("\n".join(lines), parse_mode=ParseMode.HTML)
 
 
 async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

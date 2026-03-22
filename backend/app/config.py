@@ -52,6 +52,20 @@ class Settings(BaseSettings):
         "http://localhost",
     ]
 
+    # AI - LLM（标题润色）
+    ai_llm_enabled: bool = False
+    ai_llm_base_url: str = ""  # OpenAI 兼容 API 地址
+    ai_llm_api_key: str = ""
+    ai_llm_model: str = "gpt-4o-mini"
+
+    # AI - Embedding（语义搜索）
+    ai_embedding_enabled: bool = False
+    ai_embedding_provider: str = "local"  # "local" 或 "api"
+    ai_embedding_base_url: str = ""
+    ai_embedding_api_key: str = ""
+    ai_embedding_model: str = "BAAI/bge-m3"
+    ai_embedding_dimension: int = 1024
+
     # 调试
     debug: bool = False
 

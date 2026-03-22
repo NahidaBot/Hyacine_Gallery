@@ -2,7 +2,13 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import DBDep
-from app.schemas.artwork import ArtworkListResponse, ArtworkResponse
+from app.config import settings
+from app.schemas.artwork import (
+    ArtworkListResponse,
+    ArtworkResponse,
+    SemanticSearchResponse,
+    SemanticSearchResult,
+)
 from app.services import artwork_service
 
 router = APIRouter()
@@ -25,6 +31,40 @@ async def list_artworks(
         total=total,
         page=page,
         page_size=page_size,
+    )
+
+
+@router.get("/search", response_model=SemanticSearchResponse)
+async def search_artworks(
+    q: str,
+    top_k: int = 10,
+    db: AsyncSession = DBDep,
+) -> SemanticSearchResponse:
+    """语义搜索。若 embedding 未启用则 fallback 到关键词搜索。"""
+    if settings.ai_embedding_enabled:
+        from app.ai.search import semantic_search
+
+        matches = await semantic_search(db, q, top_k=top_k)
+        results: list[SemanticSearchResult] = []
+        for artwork_id, score in matches:
+            artwork = await artwork_service.get_artwork_by_id(db, artwork_id)
+            if artwork:
+                results.append(
+                    SemanticSearchResult(
+                        artwork=ArtworkResponse.model_validate(artwork),
+                        score=score,
+                    )
+                )
+        return SemanticSearchResponse(results=results, query=q)
+
+    # Fallback: 关键词搜索
+    artworks, _ = await artwork_service.get_artworks(db, page=1, page_size=top_k, q=q)
+    return SemanticSearchResponse(
+        results=[
+            SemanticSearchResult(artwork=ArtworkResponse.model_validate(a), score=1.0)
+            for a in artworks
+        ],
+        query=q,
     )
 
 

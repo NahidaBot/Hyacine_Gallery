@@ -142,7 +142,7 @@ async def update_artwork(db: AsyncSession, artwork_id: int, data: ArtworkUpdate)
     if not artwork:
         return None
 
-    for field in ("title", "author", "author_id", "source_url", "is_nsfw", "is_ai"):
+    for field in ("title", "title_zh", "author", "author_id", "source_url", "is_nsfw", "is_ai"):
         value = getattr(data, field)
         if value is not None:
             setattr(artwork, field, value)

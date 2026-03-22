@@ -252,7 +252,7 @@ export function ArtworkCard({ artwork }: { artwork: Artwork }) {
 
       <div className="flex items-end justify-between gap-1 p-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{artwork.title || artwork.pid}</p>
+          <p className="truncate text-sm font-medium">{artwork.title_zh || artwork.title || artwork.pid}</p>
           <p className="truncate text-xs text-neutral-500">{artwork.author}</p>
         </div>
         {artwork.sources?.length > 0 && (

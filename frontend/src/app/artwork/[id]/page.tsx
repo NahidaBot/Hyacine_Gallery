@@ -20,7 +20,7 @@ export default async function ArtworkPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-4xl">
       <h1 className="mb-2 text-2xl font-bold">
-        {artwork.title || `${artwork.platform} #${artwork.pid}`}
+        {artwork.title_zh || artwork.title || `${artwork.platform} #${artwork.pid}`}
       </h1>
       <p className="mb-6 text-sm text-neutral-500">
         作者 {artwork.author || "未知"} · {artwork.platform}

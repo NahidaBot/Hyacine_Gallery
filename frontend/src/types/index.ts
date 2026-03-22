@@ -30,6 +30,7 @@ export interface Artwork {
   platform: string;
   pid: string;
   title: string;
+  title_zh: string;
   author: string;
   author_id: string;
   source_url: string;
@@ -58,6 +59,16 @@ export interface ImportResponse {
   merged: boolean;
   message: string;
   queued: boolean;
+}
+
+export interface SemanticSearchResult {
+  artwork: Artwork;
+  score: number;
+}
+
+export interface SemanticSearchResponse {
+  results: SemanticSearchResult[];
+  query: string;
 }
 
 export interface ArtworkListResponse {

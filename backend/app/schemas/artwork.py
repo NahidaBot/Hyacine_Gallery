@@ -43,6 +43,7 @@ class ArtworkResponse(BaseModel):
     platform: str
     pid: str
     title: str
+    title_zh: str
     author: str
     author_id: str
     source_url: str
@@ -81,6 +82,7 @@ class ArtworkCreate(BaseModel):
 
 class ArtworkUpdate(BaseModel):
     title: str | None = None
+    title_zh: str | None = None
     author: str | None = None
     author_id: str | None = None
     source_url: str | None = None
@@ -124,3 +126,13 @@ class ImportResponse(BaseModel):
     merged: bool = False
     message: str = ""
     queued: bool = False  # 是否已加入 bot 发布队列
+
+
+class SemanticSearchResult(BaseModel):
+    artwork: ArtworkResponse
+    score: float
+
+
+class SemanticSearchResponse(BaseModel):
+    results: list[SemanticSearchResult]
+    query: str

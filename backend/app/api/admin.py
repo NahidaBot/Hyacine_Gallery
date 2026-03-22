@@ -6,7 +6,10 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.polisher import polish_title
+from app.ai.search import compute_and_store_embedding, remove_embedding
 from app.api.dependencies import AdminDep, CurrentUserDep, DBDep
+from app.config import settings
 from app.crawlers import crawl, try_extract_identity
 from app.models.user import User
 from app.schemas.artwork import (
@@ -88,6 +91,9 @@ async def update_artwork(
 
 @router.delete("/artworks/{artwork_id}")
 async def delete_artwork(artwork_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
+    # 先清理 embedding 缓存
+    if settings.ai_embedding_enabled:
+        await remove_embedding(db, artwork_id)
     deleted = await artwork_service.delete_artwork(db, artwork_id)
     if not deleted:
         raise HTTPException(404, "作品不存在")
@@ -154,8 +160,20 @@ async def import_artwork(
         artwork.imported_by_id = current_user.id
         await db.flush()
     await storage_service.download_and_store_images(db, artwork)
+
+    # AI 标题润色
+    if settings.ai_llm_enabled:
+        title_zh = await polish_title(artwork.title, all_tags, artwork.platform)
+        if title_zh:
+            artwork.title_zh = title_zh
+            await db.flush()
+
     await db.refresh(artwork)
     await db.refresh(artwork, attribute_names=["images", "tags", "sources"])
+
+    # AI Embedding 计算
+    if settings.ai_embedding_enabled:
+        await compute_and_store_embedding(db, artwork)
 
     # 第三步：pHash 跨平台去重
     first_image = next((img for img in artwork.images if img.phash), None)
@@ -255,6 +273,68 @@ async def import_artwork(
         queued=queued,
         message="已创建新作品。",
     )
+
+
+# --- AI 批量润色 ---
+
+
+@router.post("/artworks/polish-titles")
+async def polish_titles(limit: int = 100, db: AsyncSession = DBDep) -> dict[str, int]:
+    """批量润色缺少中文标题的作品。"""
+    if not settings.ai_llm_enabled:
+        raise HTTPException(400, "LLM 功能未启用")
+
+    from sqlalchemy import select
+
+    from app.models.artwork import Artwork
+
+    stmt = select(Artwork).where(Artwork.title_zh == "", Artwork.title != "").limit(limit)
+    result = await db.execute(stmt)
+    artworks = list(result.scalars().all())
+
+    polished = 0
+    for aw in artworks:
+        tag_names = [t.name for t in aw.tags]
+        title_zh = await polish_title(aw.title, tag_names, aw.platform)
+        if title_zh:
+            aw.title_zh = title_zh
+            polished += 1
+    await db.commit()
+    return {"total": len(artworks), "polished": polished}
+
+
+# --- AI 批量 Embedding ---
+
+
+@router.post("/artworks/compute-embeddings")
+async def compute_embeddings(limit: int = 500, db: AsyncSession = DBDep) -> dict[str, int]:
+    """为缺少 embedding 的作品批量计算并存储。"""
+    if not settings.ai_embedding_enabled:
+        raise HTTPException(400, "Embedding 功能未启用")
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models.artwork import Artwork, ArtworkEmbedding
+
+    # 找出缺少 embedding 的作品
+    subq = select(ArtworkEmbedding.artwork_id)
+    stmt = (
+        select(Artwork)
+        .where(Artwork.id.notin_(subq))
+        .options(selectinload(Artwork.tags))
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    artworks = list(result.scalars().all())
+
+    computed = 0
+    for aw in artworks:
+        ok = await compute_and_store_embedding(db, aw)
+        if ok:
+            computed += 1
+    await db.commit()
+    return {"total": len(artworks), "computed": computed}
 
 
 # --- 以图搜图 (pHash) ---

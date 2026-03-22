@@ -19,6 +19,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 启动时初始化默认标签类型
     async with async_session() as db:
         await seed_default_tag_types(db)
+    # 启动时加载向量缓存（若 embedding 已启用）
+    if settings.ai_embedding_enabled:
+        from app.ai.vector_cache import vector_cache
+
+        async with async_session() as db:
+            await vector_cache.load_from_db(db)
     # 启动 raw 文件过期清理后台任务
     cleanup_task = asyncio.create_task(raw_cleanup_loop())
     yield

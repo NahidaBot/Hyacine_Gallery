@@ -1,4 +1,10 @@
-import type { Artwork, ArtworkListResponse, FriendLink, TagListResponse } from "@/types";
+import type {
+  Artwork,
+  ArtworkListResponse,
+  FriendLink,
+  SemanticSearchResponse,
+  TagListResponse,
+} from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -44,6 +50,14 @@ export async function fetchRandomArtwork(): Promise<Artwork> {
 
 export async function fetchTags(): Promise<TagListResponse> {
   return apiFetch<TagListResponse>("/api/tags");
+}
+
+export async function fetchSemanticSearch(
+  q: string,
+  topK: number = 10,
+): Promise<SemanticSearchResponse> {
+  const sp = new URLSearchParams({ q, top_k: String(topK) });
+  return apiFetch<SemanticSearchResponse>(`/api/artworks/search?${sp}`);
 }
 
 export async function fetchLinks(): Promise<FriendLink[]> {
