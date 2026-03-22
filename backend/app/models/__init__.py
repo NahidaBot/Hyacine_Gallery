@@ -9,6 +9,7 @@ from app.models.artwork import (
 )
 from app.models.author import Author
 from app.models.bot import BotChannel, BotPostQueue, BotSetting
+from app.models.site import FriendLink
 from app.models.user import User
 from app.models.webauthn import WebAuthnCredential
 
@@ -22,6 +23,7 @@ __all__ = [
     "BotPostLog",
     "BotPostQueue",
     "BotSetting",
+    "FriendLink",
     "Tag",
     "TagType",
     "User",

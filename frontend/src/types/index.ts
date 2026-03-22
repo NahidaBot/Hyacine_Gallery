@@ -142,6 +142,19 @@ export interface PasskeyCredential {
   last_used_at: string | null;
 }
 
+// ── Friend Links ──
+
+export interface FriendLink {
+  id: number;
+  name: string;
+  url: string;
+  description: string;
+  avatar_url: string;
+  sort_order: number;
+  enabled: boolean;
+  created_at: string;
+}
+
 // ── Tag Types ──
 
 export interface TagType {

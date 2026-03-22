@@ -54,6 +54,12 @@ export function Navbar() {
             <Link href="/tags" className="hover:underline">
               标签
             </Link>
+            <Link href="/links" className="hover:underline">
+              友链
+            </Link>
+            <Link href="/about" className="hover:underline">
+              关于
+            </Link>
           </div>
         </div>
 

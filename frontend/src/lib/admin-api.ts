@@ -7,6 +7,7 @@ import type {
   BotPostLog,
   BotPostLogListResponse,
   BotSetting,
+  FriendLink,
   ImportResponse,
   PasskeyCredential,
   SimilarArtworkInfo,
@@ -548,6 +549,47 @@ export function prepareCreationOptions(
       | AuthenticatorSelectionCriteria
       | undefined,
   };
+}
+
+// ── Friend Links ──
+
+export async function adminFetchLinks(): Promise<FriendLink[]> {
+  return adminFetch<FriendLink[]>("/api/admin/links");
+}
+
+export async function adminCreateLink(data: {
+  name: string;
+  url: string;
+  description?: string;
+  avatar_url?: string;
+  sort_order?: number;
+  enabled?: boolean;
+}): Promise<FriendLink> {
+  return adminFetch<FriendLink>("/api/admin/links", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminUpdateLink(
+  id: number,
+  data: {
+    name?: string;
+    url?: string;
+    description?: string;
+    avatar_url?: string;
+    sort_order?: number;
+    enabled?: boolean;
+  },
+): Promise<FriendLink> {
+  return adminFetch<FriendLink>(`/api/admin/links/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteLink(id: number): Promise<void> {
+  await adminFetch<unknown>(`/api/admin/links/${id}`, { method: "DELETE" });
 }
 
 // ── Post Logs ──

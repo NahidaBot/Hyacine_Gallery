@@ -48,6 +48,7 @@ export default function TagsPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editType, setEditType] = useState("general");
+  const [editAliasOfId, setEditAliasOfId] = useState<number | "">("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -89,12 +90,17 @@ export default function TagsPage() {
     setEditId(tag.id);
     setEditName(tag.name);
     setEditType(tag.type);
+    setEditAliasOfId(tag.alias_of_id ?? "");
   }
 
   async function saveEdit() {
     if (editId === null) return;
     try {
-      await adminUpdateTag(editId, { name: editName.trim(), type: editType });
+      await adminUpdateTag(editId, {
+        name: editName.trim(),
+        type: editType,
+        alias_of_id: editAliasOfId === "" ? null : Number(editAliasOfId),
+      });
       setEditId(null);
       await load();
     } catch (err) {
@@ -111,6 +117,9 @@ export default function TagsPage() {
       alert(String(err));
     }
   }
+
+  // 按标签名查找
+  const tagById = (id: number | null) => tags.find((t) => t.id === id);
 
   return (
     <div>
@@ -164,6 +173,7 @@ export default function TagsPage() {
                 <th className="px-3 py-2">名称</th>
                 <th className="px-3 py-2">类型</th>
                 <th className="px-3 py-2">作品数</th>
+                <th className="px-3 py-2">别名指向</th>
                 <th className="px-3 py-2">操作</th>
               </tr>
             </thead>
@@ -171,7 +181,7 @@ export default function TagsPage() {
               {tags.map((tag) => (
                 <tr
                   key={tag.id}
-                  className="border-b border-neutral-100 dark:border-neutral-800"
+                  className={`border-b border-neutral-100 dark:border-neutral-800 ${tag.alias_of_id ? "opacity-70" : ""}`}
                 >
                   <td className="px-3 py-2 tabular-nums">{tag.id}</td>
                   <td className="px-3 py-2">
@@ -185,7 +195,9 @@ export default function TagsPage() {
                         autoFocus
                       />
                     ) : (
-                      <span>#{tag.name}</span>
+                      <span className={tag.alias_of_id ? "text-neutral-400 line-through" : ""}>
+                        #{tag.name}
+                      </span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -207,6 +219,32 @@ export default function TagsPage() {
                   </td>
                   <td className="px-3 py-2 tabular-nums">
                     {tag.artwork_count}
+                  </td>
+                  <td className="px-3 py-2">
+                    {editId === tag.id ? (
+                      <select
+                        value={editAliasOfId}
+                        onChange={(e) =>
+                          setEditAliasOfId(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                        className="rounded border border-blue-400 px-2 py-1 text-sm dark:bg-neutral-900"
+                      >
+                        <option value="">— 无（独立标签）</option>
+                        {tags
+                          .filter((t) => t.id !== tag.id && !t.alias_of_id)
+                          .map((t) => (
+                            <option key={t.id} value={t.id}>
+                              #{t.name}
+                            </option>
+                          ))}
+                      </select>
+                    ) : tag.alias_of_id ? (
+                      <span className="text-xs text-amber-600 dark:text-amber-400">
+                        → #{tagById(tag.alias_of_id)?.name ?? tag.alias_of_id}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-neutral-300 dark:text-neutral-600">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     {editId === tag.id ? (
@@ -246,7 +284,7 @@ export default function TagsPage() {
               {tags.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-3 py-8 text-center text-neutral-400"
                   >
                     暂无标签。

@@ -193,6 +193,7 @@ export default function PanelLayout({
     { href: `${base}/bot/channels`, label: "Bot 频道", ownerOnly: false },
     { href: `${base}/bot/logs`, label: "发布记录", ownerOnly: false },
     { href: `${base}/queue`, label: "发布队列", ownerOnly: false },
+    { href: `${base}/links`, label: "友情链接", ownerOnly: false },
     { href: `${base}/users`, label: "用户管理", ownerOnly: true },
     { href: `${base}/account`, label: "账户设置", ownerOnly: false },
   ].filter((item) => !item.ownerOnly || role === "owner");
