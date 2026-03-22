@@ -5,7 +5,6 @@ import type {
   ArtworkSource,
   Author,
   BotChannel,
-  BotPostLog,
   BotPostLogListResponse,
   BotSetting,
   FriendLink,

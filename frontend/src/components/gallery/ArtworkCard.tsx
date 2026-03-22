@@ -163,7 +163,7 @@ export function ArtworkCard({ artwork }: { artwork: Artwork }) {
   const basePct = -100 / 3;
   let translateValue: string;
 
-  if (dragging.current && dragPx !== 0) {
+  if (dragPx !== 0) {
     translateValue = `calc(${basePct}% + ${dragPx}px)`;
   } else {
     translateValue = `${basePct + shift * basePct}%`;

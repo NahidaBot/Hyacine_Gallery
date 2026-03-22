@@ -23,7 +23,7 @@ const KNOWN_KEYS = [
 ];
 
 export default function BotSettingsPage() {
-  const [settings, setSettings] = useState<BotSetting[]>([]);
+  const [, setSettings] = useState<BotSetting[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

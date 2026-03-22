@@ -145,7 +145,7 @@ export default function CleanupPage() {
           </div>
         )}
         {duplicates.length === 0 && !loading.duplicates && (
-          <p className="text-sm text-neutral-500">点击"检测"开始扫描</p>
+          <p className="text-sm text-neutral-500">点击&ldquo;检测&rdquo;开始扫描</p>
         )}
       </section>
 
@@ -179,7 +179,7 @@ export default function CleanupPage() {
           </div>
         )}
         {orphans.length === 0 && !loading.orphans && (
-          <p className="text-sm text-neutral-500">点击"扫描"检查悬空记录</p>
+          <p className="text-sm text-neutral-500">点击&ldquo;扫描&rdquo;检查悬空记录</p>
         )}
       </section>
     </div>

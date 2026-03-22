@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 // ── 类型定义 ──
@@ -36,29 +37,28 @@ export function useApp() {
 // ── Provider 组件 ──
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("system");
-  const [nsfwMode, setNsfwModeState] = useState<NsfwMode>("hide");
-  const [aiMode, setAiModeState] = useState<AiMode>("show");
-  const [columns, setColumnsState] = useState(5);
-  const [mounted, setMounted] = useState(false);
-
-  // 挂载时从 localStorage 加载设置
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as ThemeMode | null;
-    const savedNsfw = localStorage.getItem("nsfw_mode") as NsfwMode | null;
-    const savedAi = localStorage.getItem("ai_mode") as AiMode | null;
-    const savedCols = localStorage.getItem("columns");
-    if (savedTheme) setThemeState(savedTheme);
-    if (savedNsfw) setNsfwModeState(savedNsfw);
-    if (savedAi) setAiModeState(savedAi);
-    if (savedCols) {
-      setColumnsState(Number(savedCols));
-    } else {
-      // 默认：移动端 2 列，桌面端 5 列
-      setColumnsState(window.innerWidth < 640 ? 2 : 5);
-    }
-    setMounted(true);
-  }, []);
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "system";
+    return (localStorage.getItem("theme") as ThemeMode | null) ?? "system";
+  });
+  const [nsfwMode, setNsfwModeState] = useState<NsfwMode>(() => {
+    if (typeof window === "undefined") return "hide";
+    return (localStorage.getItem("nsfw_mode") as NsfwMode | null) ?? "hide";
+  });
+  const [aiMode, setAiModeState] = useState<AiMode>(() => {
+    if (typeof window === "undefined") return "show";
+    return (localStorage.getItem("ai_mode") as AiMode | null) ?? "show";
+  });
+  const [columns, setColumnsState] = useState(() => {
+    if (typeof window === "undefined") return 5;
+    const saved = localStorage.getItem("columns");
+    return saved ? Number(saved) : window.innerWidth < 640 ? 2 : 5;
+  });
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   // 在 <html> 上应用 dark 类
   useEffect(() => {

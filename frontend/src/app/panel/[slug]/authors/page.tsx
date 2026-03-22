@@ -159,7 +159,7 @@ export default function AuthorsPage() {
 
       {mergeTarget && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white shadow-lg">
-          选择要关联的目标作者（点击"关联到此"）
+          选择要关联的目标作者（点击&ldquo;关联到此&rdquo;）
           <button
             onClick={() => setMergeTarget(null)}
             className="ml-3 underline"

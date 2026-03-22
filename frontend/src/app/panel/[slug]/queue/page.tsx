@@ -76,7 +76,7 @@ export default function QueuePage() {
         if (!(k.key in map)) map[k.key] = k.default;
       }
       setSettingValues(map);
-    } catch (_e) {
+    } catch {
       // 静默失败，不影响队列展示
     }
   }, []);
@@ -85,7 +85,7 @@ export default function QueuePage() {
     try {
       const data = await fetchNextTimes(5);
       setNextTimes(data);
-    } catch (_e) {
+    } catch {
       // 静默失败
     }
   }, []);
