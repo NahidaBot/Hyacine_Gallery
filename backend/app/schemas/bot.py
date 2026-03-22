@@ -2,7 +2,6 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-
 # --- Post Logs ---
 
 
@@ -89,3 +88,45 @@ class BotSettingResponse(BaseModel):
 
 class BotSettingsUpdateRequest(BaseModel):
     settings: dict[str, str]
+
+
+# --- 发布队列 ---
+
+
+class QueueItemCreate(BaseModel):
+    artwork_id: int
+    platform: str = "telegram"
+    channel_id: str = ""
+    priority: int = 100
+
+
+class QueueItemPriorityUpdate(BaseModel):
+    priority: int
+
+
+class QueueItemResponse(BaseModel):
+    id: int
+    artwork_id: int
+    platform: str
+    channel_id: str
+    priority: int
+    status: str
+    added_by: str
+    error: str
+    created_at: datetime
+    processed_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class QueueListResponse(BaseModel):
+    data: list[QueueItemResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class NextTimesResponse(BaseModel):
+    times: list[datetime]
+    interval_minutes: int
+    pending_count: int

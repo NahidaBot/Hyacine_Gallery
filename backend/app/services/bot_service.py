@@ -7,7 +7,6 @@ from app.models.artwork import Artwork, BotPostLog
 from app.models.bot import BotChannel, BotSetting
 from app.schemas.bot import BotChannelCreate, BotChannelUpdate, BotPostLogCreate
 
-
 # --- 发布日志 ---
 
 
@@ -50,9 +49,7 @@ async def get_post_logs(
 # --- 机器人频道 ---
 
 
-async def get_channels(
-    db: AsyncSession, platform: str = "telegram"
-) -> list[BotChannel]:
+async def get_channels(db: AsyncSession, platform: str = "telegram") -> list[BotChannel]:
     query = (
         select(BotChannel)
         .where(BotChannel.platform == platform)

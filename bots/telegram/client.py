@@ -84,6 +84,29 @@ class ArtworkData:
 
 
 @dataclass
+class QueueItem:
+    id: int
+    artwork_id: int
+    platform: str
+    channel_id: str
+    priority: int
+    status: str
+    added_by: str
+
+    @classmethod
+    def from_response(cls, data: dict) -> QueueItem:  # type: ignore[type-arg]
+        return cls(
+            id=data["id"],
+            artwork_id=data["artwork_id"],
+            platform=data["platform"],
+            channel_id=data.get("channel_id", ""),
+            priority=data["priority"],
+            status=data["status"],
+            added_by=data.get("added_by", ""),
+        )
+
+
+@dataclass
 class ChannelData:
     id: int
     platform: str
@@ -229,6 +252,37 @@ class GalleryClient:
         )
         resp.raise_for_status()
         return resp.json()
+
+    # --- 发布队列 API ---
+
+    async def pop_queue_item(self, platform: str = "telegram") -> QueueItem | None:
+        """取出下一条 pending 队列条目并标记为 processing。"""
+        resp = await self.http.post(
+            "/api/admin/bot/queue/pop", params={"platform": platform}
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data is None:
+                return None
+            return QueueItem.from_response(data)
+        return None
+
+    async def mark_queue_done(self, item_id: int) -> None:
+        resp = await self.http.post(f"/api/admin/bot/queue/{item_id}/done")
+        resp.raise_for_status()
+
+    async def mark_queue_failed(self, item_id: int, error: str = "") -> None:
+        await self.http.post(
+            f"/api/admin/bot/queue/{item_id}/failed", params={"error": error}
+        )
+
+    async def get_today_post_count(self, platform: str = "telegram") -> int:
+        resp = await self.http.get(
+            "/api/admin/bot/post-logs/today-count", params={"platform": platform}
+        )
+        if resp.status_code == 200:
+            return int(resp.json().get("count", 0))
+        return 0
 
     async def check_admin(self, tg_user_id: int) -> bool:
         """查询后端 users 表，判断指定 Telegram 用户是否有管理员权限。"""

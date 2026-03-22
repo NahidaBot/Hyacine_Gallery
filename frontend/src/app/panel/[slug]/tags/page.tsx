@@ -196,8 +196,8 @@ export default function TagsPage() {
                         className="rounded border border-blue-400 px-2 py-1 text-sm dark:bg-neutral-900"
                       >
                         {tagTypes.map((t) => (
-                          <option key={t} value={t}>
-                            {t}
+                          <option key={t.name} value={t.name}>
+                            {t.name}
                           </option>
                         ))}
                       </select>

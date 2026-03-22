@@ -93,6 +93,8 @@ class ArtworkImportRequest(BaseModel):
     url: str
     tags: list[str] = []
     auto_merge: bool = False
+    add_to_queue: bool = False  # 导入成功后加入 bot 发布队列
+    queue_priority: int = 50  # 队列优先级（50 较高，默认 100）
 
 
 class ArtworkAddSourceRequest(BaseModel):
@@ -116,7 +118,9 @@ class SimilarArtworkInfo(BaseModel):
 
 class ImportResponse(BaseModel):
     """Extended import response that may include similar artwork candidates."""
+
     artwork: ArtworkResponse | None = None
     similar: list[SimilarArtworkInfo] = []
     merged: bool = False
     message: str = ""
+    queued: bool = False  # 是否已加入 bot 发布队列

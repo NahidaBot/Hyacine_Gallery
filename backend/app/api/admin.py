@@ -7,8 +7,8 @@ from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import AdminDep, CurrentUserDep, DBDep
-from app.models.user import User
 from app.crawlers import crawl, try_extract_identity
+from app.models.user import User
 from app.schemas.artwork import (
     ArtworkAddSourceRequest,
     ArtworkCreate,
@@ -21,8 +21,21 @@ from app.schemas.artwork import (
     SimilarArtworkInfo,
 )
 from app.schemas.author import AuthorCreate, AuthorResponse, AuthorUpdate
-from app.schemas.tag import TagCreate, TagResponse, TagTypeCreate, TagTypeResponse, TagTypeUpdate, TagUpdate
-from app.services import artwork_service, author_service, storage_service, tag_service
+from app.schemas.tag import (
+    TagCreate,
+    TagResponse,
+    TagTypeCreate,
+    TagTypeResponse,
+    TagTypeUpdate,
+    TagUpdate,
+)
+from app.services import (
+    artwork_service,
+    author_service,
+    queue_service,
+    storage_service,
+    tag_service,
+)
 
 router = APIRouter(dependencies=[AdminDep])
 
@@ -37,7 +50,9 @@ async def create_author(data: AuthorCreate, db: AsyncSession = DBDep) -> AuthorR
 
 
 @router.put("/authors/{author_id}", response_model=AuthorResponse)
-async def update_author(author_id: int, data: AuthorUpdate, db: AsyncSession = DBDep) -> AuthorResponse:
+async def update_author(
+    author_id: int, data: AuthorUpdate, db: AsyncSession = DBDep
+) -> AuthorResponse:
     author = await author_service.update_author(db, author_id, data)
     if not author:
         raise HTTPException(404, "作者不存在")
@@ -160,14 +175,16 @@ async def import_artwork(
                 match_artwork = await artwork_service.get_artwork_by_id(db, img.artwork_id)
                 if match_artwork:
                     thumb = match_artwork.images[0].url_thumb if match_artwork.images else ""
-                    similar.append(SimilarArtworkInfo(
-                        artwork_id=match_artwork.id,
-                        distance=dist,
-                        platform=match_artwork.platform,
-                        pid=match_artwork.pid,
-                        title=match_artwork.title,
-                        thumb_url=thumb,
-                    ))
+                    similar.append(
+                        SimilarArtworkInfo(
+                            artwork_id=match_artwork.id,
+                            distance=dist,
+                            platform=match_artwork.platform,
+                            pid=match_artwork.pid,
+                            title=match_artwork.title,
+                            thumb_url=thumb,
+                        )
+                    )
 
             if similar and data.auto_merge:
                 # 自动合并：保留页数更多的
@@ -180,10 +197,21 @@ async def import_artwork(
                             db, target.artwork_id, artwork.id
                         )
                         if merged:
+                            queued = False
+                            if data.add_to_queue:
+                                added_by = _queue_added_by(current_user)
+                                await queue_service.add_to_queue(
+                                    db, merged.id, priority=data.queue_priority, added_by=added_by
+                                )
+                                queued = True
                             return ImportResponse(
                                 artwork=ArtworkResponse.model_validate(merged),
                                 merged=True,
-                                message=f"已自动合并到作品 #{target.artwork_id}（pHash 匹配，距离={target.distance}）。",
+                                queued=queued,
+                                message=(
+                                    f"已自动合并到作品 #{target.artwork_id}"
+                                    f"（pHash 匹配，距离={target.distance}）。"
+                                ),
                             )
                     else:
                         # 将已有作品合并到新作品（新作品页数更多）
@@ -191,10 +219,21 @@ async def import_artwork(
                             db, artwork.id, target.artwork_id
                         )
                         if merged:
+                            queued = False
+                            if data.add_to_queue:
+                                added_by = _queue_added_by(current_user)
+                                await queue_service.add_to_queue(
+                                    db, merged.id, priority=data.queue_priority, added_by=added_by
+                                )
+                                queued = True
                             return ImportResponse(
                                 artwork=ArtworkResponse.model_validate(merged),
                                 merged=True,
-                                message=f"已将作品 #{target.artwork_id} 合并到新作品 #{artwork.id}（页数更多）。",
+                                queued=queued,
+                                message=(
+                                    f"已将作品 #{target.artwork_id} 合并到新作品"
+                                    f" #{artwork.id}（页数更多）。"
+                                ),
                             )
 
             if similar and not data.auto_merge:
@@ -204,8 +243,16 @@ async def import_artwork(
                     message="发现相似作品。设置 auto_merge=true 可自动合并。",
                 )
 
+    queued = False
+    if data.add_to_queue:
+        added_by = _queue_added_by(current_user)
+        await queue_service.add_to_queue(
+            db, artwork.id, priority=data.queue_priority, added_by=added_by
+        )
+        queued = True
     return ImportResponse(
         artwork=ArtworkResponse.model_validate(artwork),
+        queued=queued,
         message="已创建新作品。",
     )
 
@@ -237,14 +284,16 @@ async def search_by_image(
         artwork = await artwork_service.get_artwork_by_id(db, img_record.artwork_id)
         if artwork:
             thumb = artwork.images[0].url_thumb if artwork.images else ""
-            results.append(SimilarArtworkInfo(
-                artwork_id=artwork.id,
-                distance=dist,
-                platform=artwork.platform,
-                pid=artwork.pid,
-                title=artwork.title,
-                thumb_url=thumb,
-            ))
+            results.append(
+                SimilarArtworkInfo(
+                    artwork_id=artwork.id,
+                    distance=dist,
+                    platform=artwork.platform,
+                    pid=artwork.pid,
+                    title=artwork.title,
+                    thumb_url=thumb,
+                )
+            )
     return results
 
 
@@ -267,10 +316,16 @@ async def add_artwork_source(
     # 检查该来源是否已存在
     existing = await artwork_service.get_source_by_pid(db, result.platform, result.pid)
     if existing:
-        raise HTTPException(409, f"来源 {result.platform}/{result.pid} 已关联到作品 #{existing.artwork_id}")
+        raise HTTPException(
+            409, f"来源 {result.platform}/{result.pid} 已关联到作品 #{existing.artwork_id}"
+        )
 
     source = await artwork_service.add_source(
-        db, artwork_id, result.platform, result.pid, result.source_url,
+        db,
+        artwork_id,
+        result.platform,
+        result.pid,
+        result.source_url,
         raw_info=json.dumps(result.raw_info or {}, ensure_ascii=False),
     )
     return ArtworkSourceResponse.model_validate(source)
@@ -346,21 +401,27 @@ async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
     rows = await tag_service.get_tag_types(db)
     return [
         TagTypeResponse(
-            id=tt.id, name=tt.name, label=tt.label,
-            color=tt.color, sort_order=tt.sort_order, tag_count=count,
+            id=tt.id,
+            name=tt.name,
+            label=tt.label,
+            color=tt.color,
+            sort_order=tt.sort_order,
+            tag_count=count,
         )
         for tt, count in rows
     ]
 
 
 @router.post("/tag-types", response_model=TagTypeResponse)
-async def create_tag_type(
-    data: TagTypeCreate, db: AsyncSession = DBDep
-) -> TagTypeResponse:
+async def create_tag_type(data: TagTypeCreate, db: AsyncSession = DBDep) -> TagTypeResponse:
     tt = await tag_service.create_tag_type(db, data)
     return TagTypeResponse(
-        id=tt.id, name=tt.name, label=tt.label,
-        color=tt.color, sort_order=tt.sort_order, tag_count=0,
+        id=tt.id,
+        name=tt.name,
+        label=tt.label,
+        color=tt.color,
+        sort_order=tt.sort_order,
+        tag_count=0,
     )
 
 
@@ -372,8 +433,12 @@ async def update_tag_type(
     if not tt:
         raise HTTPException(404, "标签类型不存在")
     return TagTypeResponse(
-        id=tt.id, name=tt.name, label=tt.label,
-        color=tt.color, sort_order=tt.sort_order, tag_count=0,
+        id=tt.id,
+        name=tt.name,
+        label=tt.label,
+        color=tt.color,
+        sort_order=tt.sort_order,
+        tag_count=0,
     )
 
 
@@ -383,3 +448,10 @@ async def delete_tag_type(tt_id: int, db: AsyncSession = DBDep) -> dict[str, str
     if not deleted:
         raise HTTPException(404, "标签类型不存在")
     return {"status": "deleted"}
+
+
+def _queue_added_by(user: User | None) -> str:
+    """生成队列条目的 added_by 字符串。"""
+    if user is None:
+        return "web_import"
+    return getattr(user, "tg_username", None) or str(user.id)

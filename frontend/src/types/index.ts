@@ -57,6 +57,7 @@ export interface ImportResponse {
   similar: SimilarArtworkInfo[];
   merged: boolean;
   message: string;
+  queued: boolean;
 }
 
 export interface ArtworkListResponse {

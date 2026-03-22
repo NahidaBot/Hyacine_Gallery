@@ -42,6 +42,7 @@ export default function ArtworksPage() {
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState("");
   const [importResult, setImportResult] = useState<ImportResponse | null>(null);
+  const [addToQueue, setAddToQueue] = useState(false);
 
   const pageSize = 20;
 
@@ -86,7 +87,7 @@ export default function ArtworksPage() {
         .split(",")
         .map((t) => t.replace(/^#/, "").trim())
         .filter(Boolean);
-      const result = await adminImportArtwork(importUrl.trim(), tags, autoMerge);
+      const result = await adminImportArtwork(importUrl.trim(), tags, autoMerge, addToQueue);
       setImportResult(result);
 
       // 如果没有相似候选，关闭弹窗并刷新
@@ -131,6 +132,7 @@ export default function ArtworksPage() {
     setImportTags("");
     setImportError("");
     setImportResult(null);
+    setAddToQueue(false);
   }
 
   const totalPages = Math.ceil(total / pageSize);
@@ -238,8 +240,17 @@ export default function ArtworksPage() {
                   value={importTags}
                   onChange={(e) => setImportTags(e.target.value)}
                   placeholder="风景, 背景"
-                  className="mb-4 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
+                  className="mb-3 w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800"
                 />
+                <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={addToQueue}
+                    onChange={(e) => setAddToQueue(e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-300 accent-blue-600"
+                  />
+                  加入发布队列
+                </label>
                 {importError && (
                   <p className="mb-3 text-sm text-red-500">{importError}</p>
                 )}

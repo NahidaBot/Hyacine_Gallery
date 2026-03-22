@@ -154,10 +154,16 @@ export async function adminImportArtwork(
   url: string,
   tags?: string[],
   autoMerge?: boolean,
+  addToQueue?: boolean,
 ): Promise<ImportResponse> {
   return adminFetch<ImportResponse>("/api/admin/artworks/import", {
     method: "POST",
-    body: JSON.stringify({ url, tags: tags ?? [], auto_merge: autoMerge ?? false }),
+    body: JSON.stringify({
+      url,
+      tags: tags ?? [],
+      auto_merge: autoMerge ?? false,
+      add_to_queue: addToQueue ?? false,
+    }),
   });
 }
 

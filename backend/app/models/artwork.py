@@ -30,19 +30,15 @@ class Artwork(Base):
     is_nsfw: Mapped[bool] = mapped_column(Boolean, default=False)
     is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    images: Mapped[list["ArtworkImage"]] = relationship(
+    images: Mapped[list[ArtworkImage]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan", order_by="ArtworkImage.page_index"
     )
-    tags: Mapped[list["Tag"]] = relationship(
-        secondary="artwork_tags", back_populates="artworks"
-    )
+    tags: Mapped[list[Tag]] = relationship(secondary="artwork_tags", back_populates="artworks")
     author_ref_id: Mapped[int | None] = mapped_column(
         ForeignKey("authors.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -51,12 +47,15 @@ class Artwork(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    author_ref: Mapped["Author | None"] = relationship(back_populates="artworks")  # type: ignore[name-defined]
-    imported_by: Mapped["User | None"] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]
-    sources: Mapped[list["ArtworkSource"]] = relationship(
+    author_ref: Mapped[Author | None] = relationship(back_populates="artworks")  # type: ignore[name-defined]
+    imported_by: Mapped[User | None] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]
+    sources: Mapped[list[ArtworkSource]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
     )
-    post_logs: Mapped[list["BotPostLog"]] = relationship(
+    post_logs: Mapped[list[BotPostLog]] = relationship(
+        back_populates="artwork", cascade="all, delete-orphan"
+    )
+    queue_items: Mapped[list[BotPostQueue]] = relationship(  # type: ignore[name-defined]
         back_populates="artwork", cascade="all, delete-orphan"
     )
 
@@ -80,7 +79,7 @@ class ArtworkImage(Base):
     storage_path_raw: Mapped[str] = mapped_column(String(1024), default="")
     raw_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    artwork: Mapped["Artwork"] = relationship(back_populates="images")
+    artwork: Mapped[Artwork] = relationship(back_populates="images")
 
 
 class ArtworkSource(Base):
@@ -96,11 +95,9 @@ class ArtworkSource(Base):
     source_url: Mapped[str] = mapped_column(String(2048), default="")
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False)
     raw_info: Mapped[str] = mapped_column(Text, default="{}")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    artwork: Mapped["Artwork"] = relationship(back_populates="sources")
+    artwork: Mapped[Artwork] = relationship(back_populates="sources")
 
 
 class TagType(Base):
@@ -112,7 +109,7 @@ class TagType(Base):
     color: Mapped[str] = mapped_column(String(50), default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
-    tags: Mapped[list["Tag"]] = relationship(back_populates="tag_type")
+    tags: Mapped[list[Tag]] = relationship(back_populates="tag_type")
 
 
 class Tag(Base):
@@ -124,13 +121,11 @@ class Tag(Base):
     alias_of_id: Mapped[int | None] = mapped_column(
         ForeignKey("tags.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    alias_of: Mapped["Tag | None"] = relationship(remote_side=[id])
-    tag_type: Mapped["TagType | None"] = relationship(back_populates="tags")
-    artworks: Mapped[list["Artwork"]] = relationship(
+    alias_of: Mapped[Tag | None] = relationship(remote_side=[id])
+    tag_type: Mapped[TagType | None] = relationship(back_populates="tags")
+    artworks: Mapped[list[Artwork]] = relationship(
         secondary="artwork_tags", back_populates="tags"
     )
 
@@ -141,9 +136,7 @@ class ArtworkTag(Base):
     artwork_id: Mapped[int] = mapped_column(
         ForeignKey("artworks.id", ondelete="CASCADE"), primary_key=True
     )
-    tag_id: Mapped[int] = mapped_column(
-        ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True
-    )
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
 
 
 class BotPostLog(Base):
@@ -160,9 +153,9 @@ class BotPostLog(Base):
     posted_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    posted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    artwork: Mapped["Artwork"] = relationship(back_populates="post_logs")
-    posted_by_user: Mapped["User | None"] = relationship(foreign_keys="[BotPostLog.posted_by_user_id]")  # type: ignore[name-defined]
+    artwork: Mapped[Artwork] = relationship(back_populates="post_logs")
+    posted_by_user: Mapped[User | None] = relationship(
+        foreign_keys="[BotPostLog.posted_by_user_id]"
+    )  # type: ignore[name-defined]

@@ -8,6 +8,7 @@ from telegram.ext import Application, ApplicationBuilder
 from config import bot_settings
 from client import GalleryClient
 from handlers import register_handlers
+from handlers.queue import process_post_queue
 
 logging.basicConfig(
     level=logging.DEBUG if bot_settings.debug else logging.INFO,
@@ -65,11 +66,14 @@ def main() -> None:
     app.bot_data["gallery_client"] = gallery_client  # type: ignore[index]
     app.bot_data["bot_settings"] = {}  # type: ignore[index]
     app.bot_data["last_post_time"] = 0.0  # type: ignore[index]
+    app.bot_data["last_queue_post_time"] = 0.0  # type: ignore[index]
 
     register_handlers(app)
 
     # 每 60 秒从后端刷新 bot 设置
     app.job_queue.run_repeating(refresh_bot_settings, interval=60, first=5)  # type: ignore[union-attr]
+    # 每 60 秒检查发布队列（实际发布间隔由 queue_interval_minutes 设置控制）
+    app.job_queue.run_repeating(process_post_queue, interval=60, first=35)  # type: ignore[union-attr]
 
     logger.info("Telegram bot 工作进程已启动")
     app.run_polling()
