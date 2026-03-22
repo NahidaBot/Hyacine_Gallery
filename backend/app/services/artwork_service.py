@@ -24,6 +24,8 @@ async def get_artworks(
     platform: str | None = None,
     tag: str | None = None,
     q: str | None = None,
+    author_id: int | None = None,
+    author_name: str | None = None,
 ) -> tuple[list[Artwork], int]:
     query = _artwork_query()
 
@@ -31,10 +33,24 @@ async def get_artworks(
         query = query.where(Artwork.platform == platform)
     if tag:
         query = query.where(Artwork.tags.any(Tag.name == tag))
+    if author_id:
+        query = query.where(Artwork.author_ref_id == author_id)
+    if author_name:
+        from app.models.author import Author
+
+        name_pattern = f"%{author_name}%"
+        author_subq = select(Author.id).where(
+            func.lower(Author.name).like(func.lower(name_pattern))
+        )
+        query = query.where(
+            Artwork.author_ref_id.in_(author_subq)
+            | func.lower(Artwork.author).like(func.lower(name_pattern))
+        )
     if q:
         pattern = f"%{q}%"
         query = query.where(
             func.lower(Artwork.title).like(func.lower(pattern))
+            | func.lower(Artwork.title_zh).like(func.lower(pattern))
             | func.lower(Artwork.author).like(func.lower(pattern))
         )
 

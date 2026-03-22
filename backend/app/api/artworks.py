@@ -22,9 +22,18 @@ async def list_artworks(
     platform: str | None = None,
     tag: str | None = None,
     q: str | None = None,
+    author_id: int | None = None,
+    author_name: str | None = None,
 ) -> ArtworkListResponse:
     artworks, total = await artwork_service.get_artworks(
-        db, page=page, page_size=page_size, platform=platform, tag=tag, q=q
+        db,
+        page=page,
+        page_size=page_size,
+        platform=platform,
+        tag=tag,
+        q=q,
+        author_id=author_id,
+        author_name=author_name,
     )
     return ArtworkListResponse(
         data=[ArtworkResponse.model_validate(a) for a in artworks],

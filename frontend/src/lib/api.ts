@@ -28,6 +28,8 @@ export async function fetchArtworks(params?: {
   platform?: string;
   tag?: string;
   q?: string;
+  authorId?: number;
+  authorName?: string;
 }): Promise<ArtworkListResponse> {
   const sp = new URLSearchParams();
   if (params?.page) sp.set("page", String(params.page));
@@ -35,6 +37,8 @@ export async function fetchArtworks(params?: {
   if (params?.platform) sp.set("platform", params.platform);
   if (params?.tag) sp.set("tag", params.tag);
   if (params?.q) sp.set("q", params.q);
+  if (params?.authorId) sp.set("author_id", String(params.authorId));
+  if (params?.authorName) sp.set("author_name", params.authorName);
 
   const qs = sp.toString();
   return apiFetch<ArtworkListResponse>(`/api/artworks${qs ? `?${qs}` : ""}`);
