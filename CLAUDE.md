@@ -7,7 +7,6 @@ Full-stack image gallery application with web frontend, admin panel, multi-platf
 - **Backend**: Python 3.14+, FastAPI, SQLAlchemy (async), Alembic, uv, Ruff, mypy
 - **Frontend**: Next.js 16 (App Router), TypeScript (strict), Tailwind CSS 4, React 19, pnpm
 - **Database**: SQLite (dev) / PostgreSQL 16 (prod)
-- **Cache/Queue**: Redis 7
 - **Bots**: python-telegram-bot (independent worker process)
 - **Crawlers**: Pixiv API, fxtwitter API, gallery-dl (generic fallback)
 - **Deployment**: Docker Compose

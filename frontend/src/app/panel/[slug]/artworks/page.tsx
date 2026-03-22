@@ -23,6 +23,20 @@ export default function ArtworksPage() {
 
   // 导入弹窗
   const [showImport, setShowImport] = useState(false);
+
+  // 弹窗打开时自动读取剪贴板 URL
+  useEffect(() => {
+    if (!showImport) return;
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        const trimmed = text.trim();
+        if (trimmed.startsWith("http")) {
+          setImportUrl(trimmed);
+        }
+      })
+      .catch(() => {});
+  }, [showImport]);
   const [importUrl, setImportUrl] = useState("");
   const [importTags, setImportTags] = useState("");
   const [importing, setImporting] = useState(false);

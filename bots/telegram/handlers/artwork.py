@@ -12,7 +12,7 @@ import io
 
 import httpx
 from PIL import Image
-from telegram import InputFile, InputMediaPhoto, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, InputFile, InputMediaPhoto, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -37,9 +37,17 @@ def _get_client(context: ContextTypes.DEFAULT_TYPE) -> GalleryClient:
     return context.bot_data["gallery_client"]  # type: ignore[return-value]
 
 
-def _is_admin(user_id: int | None) -> bool:
+async def _is_admin(user_id: int | None, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """判断用户是否有管理权限。优先查询后端 users 表；后端不可达时回退到本地配置。"""
     if user_id is None:
         return False
+
+    client = _get_client(context)
+    try:
+        return await client.check_admin(user_id)
+    except Exception:
+        logger.warning("后端管理员查询失败，回退到本地 telegram_admin_chats 配置", exc_info=True)
+
     return user_id in bot_settings.telegram_admin_chats
 
 
@@ -306,7 +314,7 @@ async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not update.message or not update.effective_user:
         return
 
-    if not _is_admin(update.effective_user.id):
+    if not await _is_admin(update.effective_user.id, context):
         await update.message.reply_text("权限不足。")
         return
 
@@ -345,10 +353,10 @@ async def _handle_post_url(
         await status_msg.edit_text(f"导入失败：{error_detail}")
         return
 
-    # 在聊天中展示导入的作品
-    await send_artwork(update, artwork, client)
 
     if no_post:
+        # 在聊天中展示导入的作品
+        await send_artwork(update, artwork, client)
         await status_msg.edit_text(f"已导入作品 #{artwork.id}（{artwork.platform}）。")
         return
 
@@ -361,7 +369,12 @@ async def _handle_post_url(
     result = await post_to_channel(context, artwork, channel_id)
     if result:
         await _log_post(context, artwork, result, posted_by=user_name)
-        await status_msg.edit_text(f"已导入 #{artwork.id} 并发布：{result.message_link}")
+        await status_msg.edit_text(
+            f"已导入 #{artwork.id} 并发布。",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("跳转频道", url=result.message_link)]]
+            ),
+        )
     else:
         await status_msg.edit_text(f"已导入 #{artwork.id}，但频道发布失败。")
 
@@ -409,7 +422,12 @@ async def _handle_post_id(
     result = await post_to_channel(context, artwork, channel_id)
     if result:
         await _log_post(context, artwork, result, posted_by=user_name)
-        await update.message.reply_text(f"已发布：{result.message_link}")
+        await update.message.reply_text(
+            f"已发布 #{artwork.id}。",
+            reply_markup=InlineKeyboardMarkup(
+                [[InlineKeyboardButton("跳转频道", url=result.message_link)]]
+            ),
+        )
     else:
         await update.message.reply_text("发布失败（无图片或频道错误）。")
 
@@ -422,7 +440,7 @@ async def import_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not update.message or not update.effective_user:
         return
 
-    if not _is_admin(update.effective_user.id):
+    if not await _is_admin(update.effective_user.id, context):
         await update.message.reply_text("权限不足。")
         return
 

@@ -2,7 +2,8 @@
 
 import logging
 
-from telegram.ext import ApplicationBuilder
+from telegram import BotCommand
+from telegram.ext import Application, ApplicationBuilder
 
 from config import bot_settings
 from client import GalleryClient
@@ -13,6 +14,22 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+BOT_COMMANDS = [
+    BotCommand("start", "启动 bot"),
+    BotCommand("help", "显示帮助信息"),
+    BotCommand("random", "获取随机图片"),
+    BotCommand("ping", "检查 bot 是否在线"),
+    BotCommand("import", "（管理员）从 URL 导入作品"),
+    BotCommand("post", "（管理员）发送作品到频道"),
+]
+
+
+async def set_commands(app: Application) -> None:  # type: ignore[type-arg]
+    """bot 初始化后注册命令列表到 Telegram，使 / 菜单生效。"""
+    await app.bot.set_my_commands(BOT_COMMANDS)
+    logger.info("已注册 %d 条 bot 命令到 Telegram", len(BOT_COMMANDS))
 
 
 async def refresh_bot_settings(context) -> None:  # type: ignore[no-untyped-def]
@@ -36,7 +53,15 @@ def main() -> None:
         admin_token=bot_settings.admin_token,
     )
 
-    app = ApplicationBuilder().token(bot_settings.telegram_bot_token).connect_timeout(3.0).read_timeout(60.0).write_timeout(60.0).build()
+    app = (
+        ApplicationBuilder()
+        .token(bot_settings.telegram_bot_token)
+        .connect_timeout(3.0)
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .post_init(set_commands)
+        .build()
+    )
     app.bot_data["gallery_client"] = gallery_client  # type: ignore[index]
     app.bot_data["bot_settings"] = {}  # type: ignore[index]
     app.bot_data["last_post_time"] = 0.0  # type: ignore[index]

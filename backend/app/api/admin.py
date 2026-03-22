@@ -6,7 +6,8 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import AdminDep, DBDep
+from app.api.dependencies import AdminDep, CurrentUserDep, DBDep
+from app.models.user import User
 from app.crawlers import crawl, try_extract_identity
 from app.schemas.artwork import (
     ArtworkAddSourceRequest,
@@ -19,10 +20,36 @@ from app.schemas.artwork import (
     ImportResponse,
     SimilarArtworkInfo,
 )
+from app.schemas.author import AuthorCreate, AuthorResponse, AuthorUpdate
 from app.schemas.tag import TagCreate, TagResponse, TagTypeCreate, TagTypeResponse, TagTypeUpdate, TagUpdate
-from app.services import artwork_service, storage_service, tag_service
+from app.services import artwork_service, author_service, storage_service, tag_service
 
 router = APIRouter(dependencies=[AdminDep])
+
+
+# --- 作者管理 ---
+
+
+@router.post("/authors", response_model=AuthorResponse)
+async def create_author(data: AuthorCreate, db: AsyncSession = DBDep) -> AuthorResponse:
+    author = await author_service.create_author(db, data)
+    return AuthorResponse.model_validate(author)
+
+
+@router.put("/authors/{author_id}", response_model=AuthorResponse)
+async def update_author(author_id: int, data: AuthorUpdate, db: AsyncSession = DBDep) -> AuthorResponse:
+    author = await author_service.update_author(db, author_id, data)
+    if not author:
+        raise HTTPException(404, "作者不存在")
+    return AuthorResponse.model_validate(author)
+
+
+@router.delete("/authors/{author_id}")
+async def delete_author(author_id: int, db: AsyncSession = DBDep) -> dict[str, str]:
+    deleted = await author_service.delete_author(db, author_id)
+    if not deleted:
+        raise HTTPException(404, "作者不存在")
+    return {"status": "deleted"}
 
 
 # --- 作品管理 ---
@@ -64,7 +91,9 @@ async def delete_artwork_image(
 
 @router.post("/artworks/import", response_model=ImportResponse)
 async def import_artwork(
-    data: ArtworkImportRequest, db: AsyncSession = DBDep
+    data: ArtworkImportRequest,
+    db: AsyncSession = DBDep,
+    current_user: User | None = CurrentUserDep,
 ) -> ImportResponse:
     """抓取 URL，通过 platform+pid 和 pHash 去重，创建或合并。"""
     # 快速路径：若能从 URL 直接提取 identity，先查 DB，命中则跳过爬虫
@@ -106,6 +135,9 @@ async def import_artwork(
         tags=all_tags,
     )
     artwork = await artwork_service.create_artwork(db, create_data, raw_info=result.raw_info)
+    if current_user:
+        artwork.imported_by_id = current_user.id
+        await db.flush()
     await storage_service.download_and_store_images(db, artwork)
     await db.refresh(artwork)
     await db.refresh(artwork, attribute_names=["images", "tags", "sources"])

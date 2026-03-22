@@ -230,6 +230,13 @@ class GalleryClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def check_admin(self, tg_user_id: int) -> bool:
+        """查询后端 users 表，判断指定 Telegram 用户是否有管理员权限。"""
+        resp = await self.http.get("/api/auth/check-admin", params={"tg_id": tg_user_id})
+        if resp.status_code == 200:
+            return bool(resp.json().get("is_admin", False))
+        return False
+
     async def get_bot_settings(self) -> dict[str, str]:
         """从后端获取所有 bot 设置。"""
         resp = await self.http.get("/api/admin/bot/settings")

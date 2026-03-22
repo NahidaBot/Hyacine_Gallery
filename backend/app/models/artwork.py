@@ -43,6 +43,16 @@ class Artwork(Base):
     tags: Mapped[list["Tag"]] = relationship(
         secondary="artwork_tags", back_populates="artworks"
     )
+    author_ref_id: Mapped[int | None] = mapped_column(
+        ForeignKey("authors.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    # 记录通过管理面板导入该作品的用户
+    imported_by_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+    author_ref: Mapped["Author | None"] = relationship(back_populates="artworks")  # type: ignore[name-defined]
+    imported_by: Mapped["User | None"] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]
     sources: Mapped[list["ArtworkSource"]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
     )
@@ -146,8 +156,13 @@ class BotPostLog(Base):
     message_id: Mapped[str] = mapped_column(String(255), default="")
     message_link: Mapped[str] = mapped_column(String(500), default="")
     posted_by: Mapped[str] = mapped_column(String(255), default="")
+    # 关联到 users 表的发图用户（与 posted_by 字符串并存，用于统计）
+    posted_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     posted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
     artwork: Mapped["Artwork"] = relationship(back_populates="post_logs")
+    posted_by_user: Mapped["User | None"] = relationship(foreign_keys="[BotPostLog.posted_by_user_id]")  # type: ignore[name-defined]
