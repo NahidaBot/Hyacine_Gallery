@@ -1,6 +1,7 @@
 import type {
   Artwork,
   ArtworkListResponse,
+  Author,
   FriendLink,
   SemanticSearchResponse,
   TagListResponse,
@@ -62,6 +63,23 @@ export async function fetchSemanticSearch(
 ): Promise<SemanticSearchResponse> {
   const sp = new URLSearchParams({ q, top_k: String(topK) });
   return apiFetch<SemanticSearchResponse>(`/api/artworks/search?${sp}`);
+}
+
+export async function fetchAuthorByName(name: string): Promise<Author> {
+  return apiFetch<Author>(`/api/authors/by-name/${encodeURIComponent(name)}`);
+}
+
+export async function fetchAuthorArtworks(
+  authorId: number,
+  params?: { page?: number; pageSize?: number },
+): Promise<ArtworkListResponse> {
+  const sp = new URLSearchParams();
+  if (params?.page) sp.set("page", String(params.page));
+  if (params?.pageSize) sp.set("page_size", String(params.pageSize));
+  const qs = sp.toString();
+  return apiFetch<ArtworkListResponse>(
+    `/api/authors/${authorId}/artworks${qs ? `?${qs}` : ""}`,
+  );
 }
 
 export async function fetchLinks(): Promise<FriendLink[]> {

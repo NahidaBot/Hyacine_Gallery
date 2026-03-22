@@ -187,6 +187,7 @@ export default function PanelLayout({
     { href: base, label: "仪表盘", ownerOnly: false },
     { href: `${base}/artworks`, label: "作品管理", ownerOnly: false },
     { href: `${base}/image-search`, label: "以图搜图", ownerOnly: false },
+    { href: `${base}/authors`, label: "作者管理", ownerOnly: false },
     { href: `${base}/tags`, label: "标签管理", ownerOnly: false },
     { href: `${base}/tag-types`, label: "标签类型", ownerOnly: false },
     { href: `${base}/bot`, label: "Bot 设置", ownerOnly: false },

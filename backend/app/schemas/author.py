@@ -22,5 +22,6 @@ class AuthorResponse(BaseModel):
     platform_uid: str
     canonical_id: int | None
     created_at: datetime
+    artwork_count: int = 0
 
     model_config = {"from_attributes": True}

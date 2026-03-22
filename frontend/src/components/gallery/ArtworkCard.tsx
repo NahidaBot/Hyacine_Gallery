@@ -253,7 +253,17 @@ export function ArtworkCard({ artwork }: { artwork: Artwork }) {
       <div className="flex items-end justify-between gap-1 p-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{artwork.title_zh || artwork.title || artwork.pid}</p>
-          <p className="truncate text-xs text-neutral-500">{artwork.author}</p>
+          {artwork.author ? (
+            <Link
+              href={`/author/${encodeURIComponent(artwork.author)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="block truncate text-xs text-neutral-500 hover:text-blue-500 hover:underline"
+            >
+              {artwork.author}
+            </Link>
+          ) : (
+            <p className="truncate text-xs text-neutral-500">&nbsp;</p>
+          )}
         </div>
         {artwork.sources?.length > 0 && (
           <div className="flex shrink-0 items-center gap-1">

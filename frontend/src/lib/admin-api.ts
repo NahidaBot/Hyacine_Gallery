@@ -3,6 +3,7 @@ import type {
   Artwork,
   ArtworkListResponse,
   ArtworkSource,
+  Author,
   BotChannel,
   BotPostLog,
   BotPostLogListResponse,
@@ -552,6 +553,31 @@ export function prepareCreationOptions(
 }
 
 // ── Friend Links ──
+
+// ── Authors ──
+
+export async function adminFetchAuthors(
+  platform?: string,
+): Promise<Author[]> {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  return adminFetch<Author[]>(`/api/authors${qs}`);
+}
+
+export async function adminUpdateAuthor(
+  id: number,
+  data: { name?: string; canonical_id?: number | null },
+): Promise<Author> {
+  return adminFetch<Author>(`/api/admin/authors/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function adminDeleteAuthor(id: number): Promise<void> {
+  await adminFetch<unknown>(`/api/admin/authors/${id}`, { method: "DELETE" });
+}
+
+// ── Links ──
 
 export async function adminFetchLinks(): Promise<FriendLink[]> {
   return adminFetch<FriendLink[]>("/api/admin/links");

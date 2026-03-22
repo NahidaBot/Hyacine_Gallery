@@ -78,6 +78,16 @@ export interface ArtworkListResponse {
   page_size: number;
 }
 
+export interface Author {
+  id: number;
+  name: string;
+  platform: string;
+  platform_uid: string;
+  canonical_id: number | null;
+  created_at: string;
+  artwork_count: number;
+}
+
 export interface Tag {
   id: number;
   name: string;

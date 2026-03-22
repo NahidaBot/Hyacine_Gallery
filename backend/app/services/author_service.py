@@ -81,6 +81,42 @@ async def delete_author(db: AsyncSession, author_id: int) -> bool:
     return True
 
 
+async def get_author_by_name(db: AsyncSession, name: str) -> Author | None:
+    """按名称查找作者（精确匹配）。"""
+    result = await db.execute(select(Author).where(Author.name == name))
+    return result.scalars().first()
+
+
+async def get_artworks_by_author_with_canonical(
+    db: AsyncSession,
+    author_id: int,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[list[Artwork], int]:
+    """获取某作者及其关联作者（共享 canonical_id）的所有作品。"""
+    author = await db.get(Author, author_id)
+    if not author:
+        return [], 0
+
+    canonical = author.canonical_id or author.id
+    result = await db.execute(
+        select(Author.id).where((Author.id == canonical) | (Author.canonical_id == canonical))
+    )
+    author_ids = [row[0] for row in result.all()]
+
+    q = (
+        select(Artwork)
+        .where(Artwork.author_ref_id.in_(author_ids))
+        .order_by(Artwork.created_at.desc())
+    )
+    count_q = select(func.count()).select_from(q.subquery())
+    total: int = (await db.execute(count_q)).scalar_one()
+
+    q = q.offset((page - 1) * page_size).limit(page_size)
+    rows = (await db.execute(q)).scalars().all()
+    return list(rows), total
+
+
 async def get_artworks_by_author(
     db: AsyncSession,
     author_id: int,

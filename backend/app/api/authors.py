@@ -22,6 +22,14 @@ async def list_authors(
     return [AuthorResponse.model_validate(a) for a in authors]
 
 
+@router.get("/by-name/{name}", response_model=AuthorResponse)
+async def get_author_by_name(name: str, db: AsyncSession = DBDep) -> AuthorResponse:
+    author = await author_service.get_author_by_name(db, name)
+    if not author:
+        raise HTTPException(404, "作者不存在")
+    return AuthorResponse.model_validate(author)
+
+
 @router.get("/{author_id}", response_model=AuthorResponse)
 async def get_author(author_id: int, db: AsyncSession = DBDep) -> AuthorResponse:
     author = await author_service.get_author(db, author_id)
