@@ -180,7 +180,8 @@ class GalleryClient:
             payload["tags"] = tags
         resp = await self.http.post("/api/admin/artworks/import", json=payload)
         resp.raise_for_status()
-        return ArtworkData.from_response(resp.json())
+        data = resp.json()
+        return ArtworkData.from_response(data["artwork"])
 
     # --- Bot 管理 API ---
 
@@ -227,6 +228,12 @@ class GalleryClient:
         resp = await self.http.get("/api/admin/bot/settings")
         resp.raise_for_status()
         return {s["key"]: s["value"] for s in resp.json()}
+
+    async def download_image(self, url: str) -> bytes:
+        """下载图片字节（兼容本地存储 URL 和 S3 公开 URL）。"""
+        resp = await self.http.get(url)
+        resp.raise_for_status()
+        return resp.content
 
     async def close(self) -> None:
         await self.http.aclose()

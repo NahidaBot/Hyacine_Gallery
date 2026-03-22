@@ -7,12 +7,14 @@
 
 from __future__ import annotations
 
+import asyncio
+import io
 import logging
 
-from telegram import InputMediaDocument, MessageOriginChannel, Update
+from telegram import InputFile, InputMediaDocument, MessageOriginChannel, Update
 from telegram.ext import ContextTypes
 
-from client import ArtworkData
+from client import ArtworkData, GalleryClient
 
 logger = logging.getLogger(__name__)
 
@@ -52,11 +54,18 @@ async def channel_post_handler(
         len(urls),
     )
 
+    client: GalleryClient = context.bot_data["gallery_client"]
+
     # 以文档形式分批发送原图（Telegram 限制每批 10 张）
     for batch_start in range(0, len(urls), 10):
-        batch = urls[batch_start : batch_start + 10]
-        if len(batch) == 1:
-            await message.reply_document(document=batch[0])
+        batch_urls = urls[batch_start : batch_start + 10]
+        batch_bytes = list(await asyncio.gather(*[client.download_image(u) for u in batch_urls]))
+        batch_files = [
+            InputFile(io.BytesIO(data), filename=f"{artwork.pid} - {batch_start + i}.jpg")
+            for i, data in enumerate(batch_bytes)
+        ]
+        if len(batch_files) == 1:
+            await message.reply_document(document=batch_files[0])
         else:
-            media = [InputMediaDocument(media=url) for url in batch]
+            media = [InputMediaDocument(media=f) for f in batch_files]
             await message.reply_media_group(media=media)

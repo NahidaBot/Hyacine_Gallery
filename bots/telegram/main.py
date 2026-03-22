@@ -36,7 +36,7 @@ def main() -> None:
         admin_token=bot_settings.admin_token,
     )
 
-    app = ApplicationBuilder().token(bot_settings.telegram_bot_token).build()
+    app = ApplicationBuilder().token(bot_settings.telegram_bot_token).connect_timeout(60.0).read_timeout(60.0).write_timeout(60.0).build()
     app.bot_data["gallery_client"] = gallery_client  # type: ignore[index]
     app.bot_data["bot_settings"] = {}  # type: ignore[index]
     app.bot_data["last_post_time"] = 0.0  # type: ignore[index]

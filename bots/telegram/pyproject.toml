@@ -4,10 +4,11 @@ version = "0.1.0"
 description = "Telegram bot worker for Hyacine Gallery"
 requires-python = ">=3.14"
 dependencies = [
-    "python-telegram-bot>=20.5",
+    "python-telegram-bot[job-queue]>=20.5",
     "httpx>=0.28",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
+    "Pillow>=11.0",
 ]
 
 [project.optional-dependencies]

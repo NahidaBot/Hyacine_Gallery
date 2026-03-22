@@ -7,8 +7,12 @@ import re
 import time
 from dataclasses import dataclass
 
+import asyncio
+import io
+
 import httpx
-from telegram import InputMediaPhoto, Update
+from PIL import Image
+from telegram import InputFile, InputMediaPhoto, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -84,9 +88,36 @@ class PostResult:
     channel_id: str
 
 
+async def _download_images(client: GalleryClient, urls: list[str]) -> list[bytes]:
+    """并发下载图片，返回原始字节列表（兼容本地存储和 S3）。"""
+    return list(await asyncio.gather(*[client.download_image(url) for url in urls]))
+
+
+_TG_MAX_EDGE = 2560
+
+
+def _as_input_files(image_bytes: list[bytes]) -> list[InputFile]:
+    """将图片字节缩放到 Telegram 最大尺寸限制（2560px），返回 InputFile 列表。"""
+    files = []
+    for i, data in enumerate(image_bytes):
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+        if max(w, h) > _TG_MAX_EDGE:
+            scale = _TG_MAX_EDGE / max(w, h)
+            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        if img.mode in ("RGBA", "P", "LA"):
+            img = img.convert("RGB")
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=90)
+        buf.seek(0)
+        files.append(InputFile(buf, filename=f"image_{i}.jpg"))
+    return files
+
+
 async def send_artwork(
     update: Update,
     artwork: ArtworkData,
+    client: GalleryClient,
 ) -> None:
     """将作品图片和说明发送到触发命令的聊天中。"""
     message = update.effective_message
@@ -101,10 +132,11 @@ async def send_artwork(
         return
 
     spoiler = artwork.is_nsfw
+    files = _as_input_files(await _download_images(client, urls[:10]))
 
-    if len(urls) == 1:
+    if len(files) == 1:
         await message.reply_photo(
-            photo=urls[0],
+            photo=files[0],
             caption=caption,
             parse_mode=ParseMode.HTML,
             has_spoiler=spoiler,
@@ -112,12 +144,12 @@ async def send_artwork(
     else:
         media = [
             InputMediaPhoto(
-                media=url,
+                media=f,
                 caption=caption if i == 0 else None,
                 parse_mode=ParseMode.HTML if i == 0 else None,
                 has_spoiler=spoiler,
             )
-            for i, url in enumerate(urls[:10])
+            for i, f in enumerate(files)
         ]
         await message.reply_media_group(media=media)
 
@@ -148,10 +180,13 @@ async def post_to_channel(
     last_post_time = context.bot_data.get("last_post_time", 0.0)
     disable_notification = (now - last_post_time) < notification_interval
 
-    if len(urls) == 1:
+    client = _get_client(context)
+    files = _as_input_files(await _download_images(client, urls[:10]))
+
+    if len(files) == 1:
         msg = await context.bot.send_photo(
             chat_id=channel_id,
-            photo=urls[0],
+            photo=files[0],
             caption=caption,
             parse_mode=ParseMode.HTML,
             has_spoiler=spoiler,
@@ -161,12 +196,12 @@ async def post_to_channel(
     else:
         media = [
             InputMediaPhoto(
-                media=url,
+                media=f,
                 caption=caption if i == 0 else None,
                 parse_mode=ParseMode.HTML if i == 0 else None,
                 has_spoiler=spoiler,
             )
-            for i, url in enumerate(urls[:10])
+            for i, f in enumerate(files)
         ]
         msgs = await context.bot.send_media_group(
             chat_id=channel_id,
@@ -240,7 +275,7 @@ async def random_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text("数据库中暂无作品。")
         return
 
-    await send_artwork(update, artwork)
+    await send_artwork(update, artwork, client)
 
 
 _URL_RE = re.compile(r"https?://\S+")
@@ -299,7 +334,7 @@ async def _handle_post_url(
         return
 
     # 在聊天中展示导入的作品
-    await send_artwork(update, artwork)
+    await send_artwork(update, artwork, client)
 
     if no_post:
         await status_msg.edit_text(f"已导入作品 #{artwork.id}（{artwork.platform}）。")
@@ -351,7 +386,7 @@ async def _handle_post_id(
 
     if no_post:
         # 仅预览
-        await send_artwork(update, artwork)
+        await send_artwork(update, artwork, client)
         return
 
     channel_id = await _resolve_target_channel(context, artwork)
@@ -396,5 +431,5 @@ async def import_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await status_msg.edit_text(f"导入失败：{error_detail}")
         return
 
-    await send_artwork(update, artwork)
+    await send_artwork(update, artwork, client)
     await status_msg.edit_text(f"已导入作品 #{artwork.id}（{artwork.platform}）。")
