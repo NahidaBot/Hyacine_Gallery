@@ -567,6 +567,51 @@ async def merge_artwork(
     return ArtworkResponse.model_validate(merged)
 
 
+# --- 重复标签检测 ---
+
+
+@router.get("/tags/duplicates")
+async def get_duplicate_tags(threshold: float = 0.8, db: AsyncSession = DBDep) -> list[dict]:
+    """检测相似度高于阈值的标签对。"""
+    from app.services.tag_dedup_service import find_duplicate_tags
+
+    return await find_duplicate_tags(db, threshold=threshold)
+
+
+@router.post("/tags/merge")
+async def merge_tags_endpoint(data: dict, db: AsyncSession = DBDep) -> dict[str, str]:
+    """合并标签：将 merge_id 合并到 keep_id。"""
+    keep_id = data.get("keep_id")
+    merge_id = data.get("merge_id")
+    if not keep_id or not merge_id:
+        raise HTTPException(400, "需要 keep_id 和 merge_id")
+    result = await tag_service.merge_tags(db, int(keep_id), int(merge_id))
+    if not result:
+        raise HTTPException(404, "标签不存在")
+    await db.commit()
+    return {"status": "merged"}
+
+
+# --- 悬空图片清理 ---
+
+
+@router.get("/cleanup/orphan-images")
+async def get_orphan_images(db: AsyncSession = DBDep) -> list[dict]:
+    """查找 storage_path 指向不存在文件的图片记录。"""
+    from app.services.cleanup_service import find_orphan_images
+
+    return await find_orphan_images(db)
+
+
+@router.post("/cleanup/orphan-images")
+async def cleanup_orphans(db: AsyncSession = DBDep) -> dict[str, int]:
+    """清理悬空图片记录（清空 storage_path 以便重新下载）。"""
+    from app.services.cleanup_service import cleanup_orphan_images
+
+    count = await cleanup_orphan_images(db)
+    return {"cleaned": count}
+
+
 # --- 标签管理 ---
 
 

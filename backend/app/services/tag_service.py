@@ -60,6 +60,30 @@ async def update_tag(db: AsyncSession, tag_id: int, data: TagUpdate) -> Tag | No
     return tag
 
 
+async def merge_tags(db: AsyncSession, keep_id: int, merge_id: int) -> Tag | None:
+    """将 merge_id 标签合并到 keep_id：迁移关联、设置别名。"""
+    keep_tag = await get_tag_by_id(db, keep_id)
+    merge_tag = await get_tag_by_id(db, merge_id)
+    if not keep_tag or not merge_tag:
+        return None
+
+    # 迁移 artwork_tags：将 merge_id 的关联改为 keep_id（跳过已有的）
+    existing = await db.execute(select(ArtworkTag.artwork_id).where(ArtworkTag.tag_id == keep_id))
+    existing_ids = {row[0] for row in existing.all()}
+
+    merge_links = await db.execute(select(ArtworkTag).where(ArtworkTag.tag_id == merge_id))
+    for link in merge_links.scalars().all():
+        if link.artwork_id in existing_ids:
+            await db.delete(link)
+        else:
+            link.tag_id = keep_id
+
+    # 设置别名
+    merge_tag.alias_of_id = keep_id
+    await db.flush()
+    return keep_tag
+
+
 async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     tag = await get_tag_by_id(db, tag_id)
     if not tag:

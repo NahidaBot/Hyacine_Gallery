@@ -71,6 +71,66 @@ async def cleanup_expired_raw_files(db: AsyncSession) -> int:
     return len(expired)
 
 
+async def find_orphan_images(db: AsyncSession) -> list[dict]:
+    """找出 storage_path 指向不存在文件的 artwork_images 记录。"""
+    result = await db.execute(select(ArtworkImage).where(ArtworkImage.storage_path != ""))
+    images = result.scalars().all()
+    orphans: list[dict] = []
+    for img in images:
+        if not _file_exists(img.storage_path):
+            orphans.append(
+                {
+                    "id": img.id,
+                    "artwork_id": img.artwork_id,
+                    "page_index": img.page_index,
+                    "storage_path": img.storage_path,
+                }
+            )
+    return orphans
+
+
+def _file_exists(storage_path: str) -> bool:
+    """检查文件是否存在（本地或 S3）。"""
+    if settings.storage_backend == "local":
+        return Path(storage_path).exists()
+    else:
+        try:
+            import boto3
+
+            s3 = boto3.client(
+                "s3",
+                endpoint_url=settings.s3_endpoint or None,
+                aws_access_key_id=settings.s3_access_key,
+                aws_secret_access_key=settings.s3_secret_key,
+                region_name=settings.s3_region or None,
+            )
+            s3.head_object(Bucket=settings.s3_bucket, Key=storage_path)
+            return True
+        except Exception:
+            return False
+
+
+async def cleanup_orphan_images(db: AsyncSession, image_ids: list[int] | None = None) -> int:
+    """清理悬空图片记录：清空 storage_path 等字段（保留记录本身以便重新下载）。"""
+    if image_ids:
+        result = await db.execute(select(ArtworkImage).where(ArtworkImage.id.in_(image_ids)))
+    else:
+        # 清理所有悬空记录
+        orphans = await find_orphan_images(db)
+        if not orphans:
+            return 0
+        orphan_ids = [o["id"] for o in orphans]
+        result = await db.execute(select(ArtworkImage).where(ArtworkImage.id.in_(orphan_ids)))
+
+    images = result.scalars().all()
+    for img in images:
+        img.storage_path = ""
+        img.url_thumb = ""
+    if images:
+        await db.commit()
+    return len(images)
+
+
 async def raw_cleanup_loop() -> None:
     """每小时执行一次过期清理，在 lifespan 中以 asyncio.create_task 启动。"""
     while True:
