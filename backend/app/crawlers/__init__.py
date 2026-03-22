@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.crawlers.base import BaseCrawler, CrawlResult
+from app.crawlers.bilibili import BiliBiliCrawler
 from app.crawlers.gallery_dl import GalleryDLCrawler
 from app.crawlers.miyoushe import MiYouSheCrawler
 from app.crawlers.pixiv import PixivCrawler
@@ -15,6 +16,7 @@ _CRAWLERS: list[BaseCrawler] = [
     PixivCrawler(),
     TwitterCrawler(),
     MiYouSheCrawler(),
+    BiliBiliCrawler(),
     GalleryDLCrawler(),
 ]
 

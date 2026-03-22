@@ -39,6 +39,9 @@ _REFERER_MAP: dict[str, str] = {
     "upload-bbs.miyoushe.com": "https://www.miyoushe.com/",
     "upload-os-bbs.hoyolab.com": "https://www.hoyolab.com/",
     "act-upload.mihoyo.com": "https://www.miyoushe.com/",
+    "i0.hdslb.com": "https://www.bilibili.com/",
+    "i1.hdslb.com": "https://www.bilibili.com/",
+    "i2.hdslb.com": "https://www.bilibili.com/",
 }
 
 
