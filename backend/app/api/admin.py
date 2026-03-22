@@ -316,6 +316,92 @@ async def rebuild_fts(db: AsyncSession = DBDep) -> dict[str, int]:
     return {"indexed": count}
 
 
+# --- AI 标签建议 ---
+
+
+@router.post("/artworks/{artwork_id}/suggest-tags")
+async def suggest_tags_for_artwork(artwork_id: int, db: AsyncSession = DBDep) -> list[dict]:
+    """使用 LLM 视觉分析作品图片并建议标签（不自动应用）。"""
+    if not settings.ai_llm_enabled:
+        raise HTTPException(400, "LLM 功能未启用")
+
+    artwork = await artwork_service.get_artwork_by_id(db, artwork_id)
+    if not artwork:
+        raise HTTPException(404, "作品不存在")
+
+    if not artwork.images:
+        raise HTTPException(422, "作品没有图片")
+
+    # 下载第一张图片
+    first_image = sorted(artwork.images, key=lambda i: i.page_index)[0]
+    image_url = first_image.url_original or first_image.url_thumb
+    if not image_url:
+        raise HTTPException(422, "无法获取图片 URL")
+
+    image_data = await storage_service.download_image_bytes(image_url)
+    existing_tags = [t.name for t in artwork.tags]
+
+    from app.ai.tagger import suggest_tags
+
+    return await suggest_tags(
+        image_bytes=[image_data],
+        existing_tags=existing_tags,
+        platform=artwork.platform,
+    )
+
+
+@router.post("/artworks/batch-auto-tag")
+async def batch_auto_tag(
+    limit: int = 100, confidence: float = 0.8, db: AsyncSession = DBDep
+) -> dict[str, int]:
+    """批量为作品自动生成标签（仅添加高置信度标签）。"""
+    if not settings.ai_llm_enabled:
+        raise HTTPException(400, "LLM 功能未启用")
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.ai.tagger import suggest_tags
+    from app.models.artwork import Artwork
+
+    stmt = (
+        select(Artwork)
+        .options(selectinload(Artwork.images), selectinload(Artwork.tags))
+        .limit(limit)
+    )
+    result = await db.execute(stmt)
+    artworks = list(result.scalars().all())
+
+    tagged = 0
+    for aw in artworks:
+        if not aw.images:
+            continue
+        first_image = sorted(aw.images, key=lambda i: i.page_index)[0]
+        image_url = first_image.url_original or first_image.url_thumb
+        if not image_url:
+            continue
+        try:
+            image_data = await storage_service.download_image_bytes(image_url)
+        except Exception:
+            continue
+
+        existing = [t.name for t in aw.tags]
+        suggestions = await suggest_tags(
+            image_bytes=[image_data], existing_tags=existing, platform=aw.platform
+        )
+        new_tags = [s["name"] for s in suggestions if s["confidence"] >= confidence]
+        if new_tags:
+            from app.services.artwork_service import _get_or_create_tags
+
+            tag_objs = await _get_or_create_tags(db, new_tags)
+            for tag in tag_objs:
+                if tag not in aw.tags:
+                    aw.tags.append(tag)
+            tagged += 1
+    await db.commit()
+    return {"total": len(artworks), "tagged": tagged}
+
+
 # --- AI 批量 Embedding ---
 
 

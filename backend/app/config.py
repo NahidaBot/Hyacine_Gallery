@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     # 以图搜图
     saucenao_api_key: str = ""
 
+    # AI 标签
+    ai_auto_tag_on_import: bool = False
+    ai_auto_tag_confidence: float = 0.8
+
     # 调试
     debug: bool = False
 

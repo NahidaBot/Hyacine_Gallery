@@ -345,12 +345,54 @@ export default function ArtworkEditPage() {
           <label className="mb-1 block text-sm font-medium">
             标签（逗号分隔）
           </label>
-          <input
-            type="text"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            className={inputCls}
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              className={`${inputCls} flex-1`}
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/admin/artworks/${artworkId}/suggest-tags`,
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${localStorage.getItem("jwt_token") ?? ""}`,
+                      },
+                    },
+                  );
+                  if (!res.ok) throw new Error(await res.text());
+                  const suggestions = await res.json();
+                  if (suggestions.length === 0) {
+                    alert("AI 未返回标签建议");
+                    return;
+                  }
+                  const names = suggestions
+                    .filter((s: { confidence: number }) => s.confidence >= 0.5)
+                    .map((s: { name: string }) => s.name);
+                  if (names.length > 0) {
+                    const current = tagsInput
+                      .split(",")
+                      .map((t: string) => t.trim())
+                      .filter(Boolean);
+                    const merged = [
+                      ...new Set([...current, ...names]),
+                    ].join(", ");
+                    setTagsInput(merged);
+                  }
+                } catch (e) {
+                  alert(`AI 标签建议失败: ${e}`);
+                }
+              }}
+              className="shrink-0 rounded bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
+            >
+              AI 建议
+            </button>
+          </div>
         </div>
         <div className="flex gap-6">
           <label className="flex items-center gap-2 text-sm">

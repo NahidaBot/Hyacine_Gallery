@@ -11,6 +11,15 @@ class LLMProvider(ABC):
         """调用 LLM 生成文本。"""
         ...
 
+    async def complete_with_images(
+        self,
+        prompt: str,
+        image_b64: list[str] | None = None,
+        system: str = "",
+    ) -> str:
+        """带图片的多模态调用。默认 fallback 到纯文本。"""
+        return await self.complete(prompt, system=system)
+
 
 class EmbeddingProvider(ABC):
     """Embedding 提供者抽象，用于语义搜索。"""

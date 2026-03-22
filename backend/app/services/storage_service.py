@@ -69,6 +69,15 @@ def _download_headers(url: str) -> dict[str, str]:
     return headers
 
 
+async def download_image_bytes(url: str) -> bytes:
+    """下载图片并返回原始字节。用于 AI 标签建议等需要图片数据的场景。"""
+    client = _get_http_client()
+    headers = _download_headers(url)
+    resp = await client.get(url, headers=headers)
+    resp.raise_for_status()
+    return resp.content
+
+
 def _storage_key(platform: str, pid: str, variant: str, page_index: int) -> str:
     """构建存储键，如 'pixiv/12345/original/0.webp'。"""
     return f"{platform}/{pid}/{variant}/{page_index}.webp"
@@ -293,9 +302,7 @@ async def _process_single_image(
         raw_storage_path, raw_url = await _save(raw_key, raw_data, content_type=mime)
         img_record.storage_path_raw = raw_storage_path
         img_record.url_raw = raw_url
-        img_record.raw_expires_at = datetime.now(UTC) + timedelta(
-            days=settings.raw_ttl_days
-        )
+        img_record.raw_expires_at = datetime.now(UTC) + timedelta(days=settings.raw_ttl_days)
         logger.debug(
             "  已保存原始文件: %s (%s, 过期: %s)",
             raw_key,

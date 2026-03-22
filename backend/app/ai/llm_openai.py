@@ -39,3 +39,29 @@ class OpenAILLMProvider(LLMProvider):
         resp.raise_for_status()
         data = resp.json()
         return data["choices"][0]["message"]["content"].strip()
+
+    async def complete_with_images(
+        self,
+        prompt: str,
+        image_b64: list[str] | None = None,
+        system: str = "",
+    ) -> str:
+        """构建 OpenAI multimodal messages 格式。"""
+        messages: list[dict] = []  # type: ignore[type-arg]
+        if system:
+            messages.append({"role": "system", "content": system})
+
+        content: list[dict] = [{"type": "text", "text": prompt}]  # type: ignore[type-arg]
+        for b64 in image_b64 or []:
+            content.append(
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+            )
+        messages.append({"role": "user", "content": content})
+
+        resp = await self._client.post(
+            "/chat/completions",
+            json={"model": self._model, "messages": messages, "temperature": 0.3},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"].strip()
