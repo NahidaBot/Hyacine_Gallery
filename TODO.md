@@ -1,6 +1,6 @@
 # Hyacine Gallery — 优化路线图
 
-> 最后更新：2026-03-22
+> 最后更新：2026-03-23
 
 ---
 
@@ -45,9 +45,9 @@
 
 ### 🟡 作者系统
 
-- [ ] **`authors` 表** — 独立的作者实体，字段：`name`、`platform`、`platform_uid`、`canonical_id`（自引用，用于关联同一作者的多平台账号）
+- [x] **`authors` 表** — 独立的作者实体，字段：`name`、`platform`、`platform_uid`、`canonical_id`（自引用，用于关联同一作者的多平台账号）
 - [ ] **跨平台作者关联** — 管理面板支持将 Pixiv 用户、Twitter 用户等标记为"同一人"
-- [ ] **作者 API** — `GET /api/authors`、`GET /api/authors/:id/artworks`
+- [x] **作者 API** — `GET /api/authors`、`GET /api/authors/:id/artworks`
 
 ### 🟡 搜索增强
 
@@ -71,7 +71,7 @@
 
 ### 🔴 发图后交互反馈
 
-- [ ] **发图后 Inline Button** — `/post` 完成后，在反馈消息下方附加 `[跳转频道]` 按钮（`InlineKeyboardButton` + `url=channel_link`），方便管理员确认发布效果
+- [x] **发图后 Inline Button** — `/post` 完成后，在反馈消息下方附加 `[跳转频道]` 按钮（`InlineKeyboardButton` + `url=channel_link`），方便管理员确认发布效果
 
 ### 🟡 LLM 集成
 
@@ -81,8 +81,8 @@
 
 ### 🟡 Telegram OAuth 登录
 
-- [ ] **前端管理面板接入 Telegram Login Widget** — 管理员通过 TG OAuth 免密码登录，替换当前 `X-Admin-Token` 静态 token 方案
-- [ ] **Bot 侧验证** — Bot 命令鉴权改为查询 `users` 表，而非硬编码 `ADMIN_IDS`
+- [x] **前端管理面板接入 Telegram Login Widget** — 管理员通过 TG OAuth 免密码登录，替换当前 `X-Admin-Token` 静态 token 方案
+- [x] **Bot 侧验证** — Bot 命令鉴权改为查询 `users` 表，而非硬编码 `ADMIN_IDS`
 
 ### 🟢 长期规划
 
@@ -102,11 +102,11 @@
 
 ### 🟡 实现步骤
 
-1. [ ] 新增 `users` 表 + Alembic migration
-2. [ ] 后端鉴权中间件改为查库（JWT 或 Session）
-3. [ ] 前端管理面板集成 Telegram Login Widget（OAuth）
-4. [ ] Bot 命令鉴权改为查 `users` 表
-5. [ ] 管理面板增加用户管理页（仅 `owner` 可见）
+1. [x] 新增 `users` 表 + Alembic migration
+2. [x] 后端鉴权中间件改为查库（JWT 双轨：Bearer JWT + X-Admin-Token 回退）
+3. [x] 前端管理面板集成 Telegram Login Widget（OAuth）
+4. [x] Bot 命令鉴权改为查 `users` 表
+5. [x] 管理面板增加用户管理页（仅 `owner` 可见）
 
 ---
 
@@ -143,3 +143,10 @@
 - pHash 相似图搜索
 - Pixiv 标签中文优先策略
 - Bot 发图 Telegram 文件 ID 缓存
+- 用户与权限系统（users 表、JWT 双轨鉴权、role: owner/admin）
+- Telegram OAuth 登录 + WebAuthn Passkey 支持
+- 管理面板用户管理页（仅 owner 可见）
+- 作者系统（authors 表、跨平台 canonical_id、作者 API）
+- Bot 命令列表注册（/ 菜单）
+- Bot 发图后 Inline Button（跳转频道）
+- Bot 鉴权改为查询后端 users 表
