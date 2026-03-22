@@ -16,7 +16,9 @@ async def list_authors(
     page_size: int = 50,
     db: AsyncSession = DBDep,
 ) -> list[AuthorResponse]:
-    authors, _ = await author_service.list_authors(db, platform=platform, page=page, page_size=page_size)
+    authors, _ = await author_service.list_authors(
+        db, platform=platform, page=page, page_size=page_size
+    )
     return [AuthorResponse.model_validate(a) for a in authors]
 
 
@@ -38,7 +40,9 @@ async def get_author_artworks(
     author = await author_service.get_author(db, author_id)
     if not author:
         raise HTTPException(404, "作者不存在")
-    artworks, total = await author_service.get_artworks_by_author(db, author_id, page=page, page_size=page_size)
+    artworks, total = await author_service.get_artworks_by_author(
+        db, author_id, page=page, page_size=page_size
+    )
     return ArtworkListResponse(
         data=[ArtworkResponse.model_validate(a) for a in artworks],
         total=total,
@@ -49,12 +53,15 @@ async def get_author_artworks(
 
 # --- 管理接口（需 AdminDep，在 admin router 中注册）---
 
+
 async def admin_create_author(data: AuthorCreate, db: AsyncSession) -> AuthorResponse:
     author = await author_service.create_author(db, data)
     return AuthorResponse.model_validate(author)
 
 
-async def admin_update_author(author_id: int, data: AuthorUpdate, db: AsyncSession) -> AuthorResponse:
+async def admin_update_author(
+    author_id: int, data: AuthorUpdate, db: AsyncSession
+) -> AuthorResponse:
     author = await author_service.update_author(db, author_id, data)
     if not author:
         raise HTTPException(404, "作者不存在")

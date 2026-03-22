@@ -1,11 +1,10 @@
 import json
 
-import imagehash
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.artwork import Artwork, ArtworkImage, ArtworkSource, ArtworkTag, BotPostLog, Tag
+from app.models.artwork import Artwork, ArtworkImage, ArtworkSource, BotPostLog, Tag
 from app.schemas.artwork import ArtworkCreate, ArtworkUpdate
 
 
@@ -132,7 +131,9 @@ async def create_artwork(
     db.add(artwork)
 
     await db.commit()
-    await db.refresh(artwork, attribute_names=["images", "tags", "sources", "created_at", "updated_at"])
+    await db.refresh(
+        artwork, attribute_names=["images", "tags", "sources", "created_at", "updated_at"]
+    )
     return artwork
 
 
@@ -150,7 +151,9 @@ async def update_artwork(db: AsyncSession, artwork_id: int, data: ArtworkUpdate)
         artwork.tags = await _get_or_create_tags(db, data.tags)
 
     await db.commit()
-    await db.refresh(artwork, attribute_names=["images", "tags", "sources", "created_at", "updated_at"])
+    await db.refresh(
+        artwork, attribute_names=["images", "tags", "sources", "created_at", "updated_at"]
+    )
     return artwork
 
 
@@ -269,9 +272,7 @@ async def merge_artworks(db: AsyncSession, target_id: int, source_id: int) -> Ar
 
     # 迁移发布日志
     await db.execute(
-        update(BotPostLog)
-        .where(BotPostLog.artwork_id == source_id)
-        .values(artwork_id=target_id)
+        update(BotPostLog).where(BotPostLog.artwork_id == source_id).values(artwork_id=target_id)
     )
 
     # 刷新 SQL UPDATE，然后使 ORM 缓存失效，避免 delete-orphan
@@ -305,9 +306,7 @@ async def find_similar_by_phash(
 
     # 加载所有非空 pHash 并在 Python 中过滤
     # （SQLite 不能高效支持位运算）
-    result = await db.execute(
-        select(ArtworkImage).where(ArtworkImage.phash != "")
-    )
+    result = await db.execute(select(ArtworkImage).where(ArtworkImage.phash != ""))
     candidates = result.scalars().all()
 
     matches: list[tuple[ArtworkImage, int]] = []

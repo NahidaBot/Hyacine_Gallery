@@ -1,14 +1,14 @@
 import asyncio
 import contextlib
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
 from app.api.images import router as images_router
 from app.api.router import api_router
+from app.config import settings
 from app.database import async_session
 from app.services.cleanup_service import raw_cleanup_loop
 from app.services.tag_service import seed_default_tag_types

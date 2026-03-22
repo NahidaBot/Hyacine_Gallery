@@ -18,9 +18,7 @@ class Author(Base):
     canonical_id: Mapped[int | None] = mapped_column(
         ForeignKey("authors.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    canonical: Mapped["Author | None"] = relationship(remote_side=[id])
-    artworks: Mapped[list["Artwork"]] = relationship(back_populates="author_ref")  # type: ignore[name-defined]
+    canonical: Mapped[Author | None] = relationship(remote_side=[id])
+    artworks: Mapped[list[Artwork]] = relationship(back_populates="author_ref")  # type: ignore[name-defined]

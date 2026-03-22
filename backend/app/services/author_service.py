@@ -1,8 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.author import Author
 from app.models.artwork import Artwork
+from app.models.author import Author
 from app.schemas.author import AuthorCreate, AuthorUpdate
 
 
@@ -62,9 +62,7 @@ async def create_author(db: AsyncSession, data: AuthorCreate) -> Author:
     return author
 
 
-async def update_author(
-    db: AsyncSession, author_id: int, data: AuthorUpdate
-) -> Author | None:
+async def update_author(db: AsyncSession, author_id: int, data: AuthorUpdate) -> Author | None:
     author = await db.get(Author, author_id)
     if not author:
         return None
@@ -90,7 +88,11 @@ async def get_artworks_by_author(
     page_size: int = 20,
 ) -> tuple[list[Artwork], int]:
     """获取某作者关联的作品列表（通过 author_ref_id）。"""
-    q = select(Artwork).where(Artwork.author_ref_id == author_id).order_by(Artwork.created_at.desc())
+    q = (
+        select(Artwork)
+        .where(Artwork.author_ref_id == author_id)
+        .order_by(Artwork.created_at.desc())
+    )
 
     count_q = select(func.count()).select_from(q.subquery())
     total: int = (await db.execute(count_q)).scalar_one()

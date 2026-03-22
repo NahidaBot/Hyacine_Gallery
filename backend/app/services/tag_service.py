@@ -12,9 +12,7 @@ async def get_tags(
 ) -> list[tuple[Tag, int]]:
     """返回所有标签及其作品数量。"""
     count_sub = (
-        select(ArtworkTag.tag_id, func.count().label("cnt"))
-        .group_by(ArtworkTag.tag_id)
-        .subquery()
+        select(ArtworkTag.tag_id, func.count().label("cnt")).group_by(ArtworkTag.tag_id).subquery()
     )
 
     query = select(Tag, func.coalesce(count_sub.c.cnt, 0)).outerjoin(
@@ -76,11 +74,7 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
 
 async def get_tag_types(db: AsyncSession) -> list[tuple[TagType, int]]:
     """返回所有标签类型及其标签数量，按 sort_order 排序。"""
-    count_sub = (
-        select(Tag.type, func.count().label("cnt"))
-        .group_by(Tag.type)
-        .subquery()
-    )
+    count_sub = select(Tag.type, func.count().label("cnt")).group_by(Tag.type).subquery()
     query = (
         select(TagType, func.coalesce(count_sub.c.cnt, 0))
         .outerjoin(count_sub, TagType.name == count_sub.c.type)

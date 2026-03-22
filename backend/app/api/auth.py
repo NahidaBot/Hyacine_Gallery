@@ -1,6 +1,6 @@
 """Telegram OAuth + WebAuthn Passkeys + JWT 鉴权路由。"""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import jwt as pyjwt
 from fastapi import APIRouter, HTTPException, Request
@@ -12,8 +12,8 @@ from app.api.dependencies import AdminDep, CurrentUserDep, DBDep
 from app.config import settings
 from app.models.user import User
 from app.models.webauthn import WebAuthnCredential
-from app.services.auth_service import TelegramUser, create_jwt, decode_jwt, verify_telegram_login
 from app.services import webauthn_service
+from app.services.auth_service import TelegramUser, create_jwt, decode_jwt, verify_telegram_login
 
 router = APIRouter()
 
@@ -72,7 +72,7 @@ class PasskeyAuthCompleteRequest(BaseModel):
 
 
 def _now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── 路由 ──────────────────────────────────────────────────────────────────────
@@ -84,9 +84,7 @@ async def get_auth_config() -> dict[str, str]:
 
 
 @router.post("/telegram", response_model=TokenResponse)
-async def telegram_login(
-    body: TelegramAuthRequest, db: AsyncSession = DBDep
-) -> TokenResponse:
+async def telegram_login(body: TelegramAuthRequest, db: AsyncSession = DBDep) -> TokenResponse:
     """验证 Telegram Login Widget 回调，upsert User 记录，颁发 JWT。"""
     raw: dict[str, str] = {
         k: str(v)
@@ -136,7 +134,9 @@ async def get_me(request: Request, db: AsyncSession = DBDep) -> UserResponse:
     if not user:
         raise HTTPException(status_code=401, detail="用户不存在")
 
-    return UserResponse(id=user.id, tg_id=user.tg_id, tg_username=user.tg_username, email=user.email, role=user.role)
+    return UserResponse(
+        id=user.id, tg_id=user.tg_id, tg_username=user.tg_username, email=user.email, role=user.role
+    )
 
 
 @router.get("/check-admin", response_model=AdminCheckResponse, dependencies=[AdminDep])
@@ -208,9 +208,7 @@ async def passkey_auth_begin(
 ) -> dict:  # type: ignore[type-arg]
     """按 tg_username 或 email 查找用户，生成认证 options。"""
     result = await db.execute(
-        select(User).where(
-            (User.tg_username == body.identifier) | (User.email == body.identifier)
-        )
+        select(User).where((User.tg_username == body.identifier) | (User.email == body.identifier))
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -236,9 +234,7 @@ async def passkey_auth_complete(
 ) -> TokenResponse:
     """验证认证 response，颁发 JWT。"""
     result = await db.execute(
-        select(User).where(
-            (User.tg_username == body.identifier) | (User.email == body.identifier)
-        )
+        select(User).where((User.tg_username == body.identifier) | (User.email == body.identifier))
     )
     user = result.scalar_one_or_none()
     if not user or not user.webauthn_challenge:

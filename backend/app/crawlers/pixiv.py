@@ -15,12 +15,8 @@ from app.crawlers.base import BaseCrawler, CrawlResult
 # 匹配 CJK 统一表意文字范围（用于中文优先 tag 策略）
 _CHINESE_RE = re.compile(r"[一-龥]")
 
-_PIXIV_PATTERN = re.compile(
-    r"(?:https?://)?(?:www\.)?pixiv\.net/(?:en/)?artworks/(\d+)"
-)
-_PHIXIV_PATTERN = re.compile(
-    r"(?:https?://)?(?:www\.)?phixiv\.net/(?:en/)?artworks/(\d+)"
-)
+_PIXIV_PATTERN = re.compile(r"(?:https?://)?(?:www\.)?pixiv\.net/(?:en/)?artworks/(\d+)")
+_PHIXIV_PATTERN = re.compile(r"(?:https?://)?(?:www\.)?phixiv\.net/(?:en/)?artworks/(\d+)")
 
 _AJAX_URL = "https://www.pixiv.net/ajax/illust/{pid}?lang=zh"
 _PAGES_URL = "https://www.pixiv.net/ajax/illust/{pid}/pages?lang=zh"
@@ -71,9 +67,13 @@ class PixivCrawler(BaseCrawler):
                     break
                 except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
                     if attempt == _RETRIES - 1:
-                        return CrawlResult(success=False, error=f"请求超时，已重试 {_RETRIES} 次: {e}")
-                    wait = 2 ** attempt
-                    logger.warning("Pixiv 请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e)
+                        return CrawlResult(
+                            success=False, error=f"请求超时，已重试 {_RETRIES} 次: {e}"
+                        )
+                    wait = 2**attempt
+                    logger.warning(
+                        "Pixiv 请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e
+                    )
                     await asyncio.sleep(wait)
 
             assert resp is not None
@@ -100,16 +100,17 @@ class PixivCrawler(BaseCrawler):
                     break
                 except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
                     if attempt == _RETRIES - 1:
-                        return CrawlResult(success=False, error=f"获取分页超时，已重试 {_RETRIES} 次: {e}")
-                    wait = 2 ** attempt
-                    logger.warning("Pixiv 分页请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e)
+                        return CrawlResult(
+                            success=False, error=f"获取分页超时，已重试 {_RETRIES} 次: {e}"
+                        )
+                    wait = 2**attempt
+                    logger.warning(
+                        "Pixiv 分页请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e
+                    )
                     await asyncio.sleep(wait)
             assert pages_resp is not None
             pages_data = pages_resp.json()
-            image_urls = [
-                page["urls"]["original"]
-                for page in pages_data.get("body", [])
-            ]
+            image_urls = [page["urls"]["original"] for page in pages_data.get("body", [])]
 
             # 提取标签（中文优先策略）
             tags: list[str] = []

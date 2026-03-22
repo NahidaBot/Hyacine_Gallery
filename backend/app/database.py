@@ -23,6 +23,7 @@ if _is_sqlite:
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 

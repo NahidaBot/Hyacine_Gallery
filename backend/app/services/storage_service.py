@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -185,7 +185,10 @@ async def download_and_store_images(
 
     logger.info(
         "作品 #%d (%s/%s): 开始图片处理（共 %d 张）",
-        artwork.id, artwork.platform, artwork.pid, total,
+        artwork.id,
+        artwork.platform,
+        artwork.pid,
+        total,
     )
 
     for img_record in artwork.images:
@@ -197,7 +200,9 @@ async def download_and_store_images(
             skipped += 1
             logger.debug(
                 "  [%d/%d] 第 %d 页 — 已处理，跳过",
-                skipped + processed, total, img_record.page_index,
+                skipped + processed,
+                total,
+                img_record.page_index,
             )
             continue
 
@@ -206,23 +211,31 @@ async def download_and_store_images(
             processed += 1
             logger.info(
                 "  [%d/%d] 第 %d 页 — 成功 (%dx%d, %s)",
-                processed + skipped, total, img_record.page_index,
-                img_record.width, img_record.height,
+                processed + skipped,
+                total,
+                img_record.page_index,
+                img_record.width,
+                img_record.height,
                 _human_size(img_record.file_size),
             )
         except Exception:
             failed += 1
             logger.warning(
                 "  [%d/%d] 第 %d 页 — 失败 (url: %s)",
-                processed + skipped + failed, total,
-                img_record.page_index, img_record.url_original,
+                processed + skipped + failed,
+                total,
+                img_record.page_index,
+                img_record.url_original,
                 exc_info=True,
             )
 
     await db.commit()
     logger.info(
         "作品 #%d: 完成 — %d 已处理, %d 已跳过, %d 失败",
-        artwork.id, processed, skipped, failed,
+        artwork.id,
+        processed,
+        skipped,
+        failed,
     )
 
 
@@ -243,7 +256,8 @@ async def _process_single_image(
     """下载、处理并存储单张图片。"""
     logger.info(
         "  正在下载第 %d 页: %s",
-        img_record.page_index, img_record.url_original,
+        img_record.page_index,
+        img_record.url_original,
     )
     _RETRIES = 10
     raw_data: bytes = b""
@@ -259,11 +273,13 @@ async def _process_single_image(
         except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
             if attempt == _RETRIES - 1:
                 raise
-            wait = 2 ** attempt
+            wait = 2**attempt
             logger.warning("图片下载失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e)
             await asyncio.sleep(wait)
     logger.info(
-        "  已下载 %s (%s)", img_record.url_original, _human_size(len(raw_data)),
+        "  已下载 %s (%s)",
+        img_record.url_original,
+        _human_size(len(raw_data)),
     )
 
     # 存储原始文件（TTL 控制）
@@ -274,10 +290,14 @@ async def _process_single_image(
         raw_storage_path, raw_url = await _save(raw_key, raw_data, content_type=mime)
         img_record.storage_path_raw = raw_storage_path
         img_record.url_raw = raw_url
-        img_record.raw_expires_at = datetime.now(timezone.utc) + timedelta(days=settings.raw_ttl_days)
+        img_record.raw_expires_at = datetime.now(UTC) + timedelta(
+            days=settings.raw_ttl_days
+        )
         logger.debug(
             "  已保存原始文件: %s (%s, 过期: %s)",
-            raw_key, _human_size(len(raw_data)), img_record.raw_expires_at.date(),
+            raw_key,
+            _human_size(len(raw_data)),
+            img_record.raw_expires_at.date(),
         )
 
     # 处理原图 → WebP
@@ -286,7 +306,11 @@ async def _process_single_image(
     original_storage_path, original_url = await _save(original_key, original_bytes)
     logger.debug(
         "  已保存原图: %s (%dx%d, %s → %s)",
-        original_key, width, height, _human_size(len(raw_data)), _human_size(len(original_bytes)),
+        original_key,
+        width,
+        height,
+        _human_size(len(raw_data)),
+        _human_size(len(original_bytes)),
     )
 
     # 处理缩略图
@@ -295,7 +319,10 @@ async def _process_single_image(
     _, thumb_url = await _save(thumb_key, thumb_bytes)
     logger.debug(
         "  已保存缩略图: %s (%dx%d, %s)",
-        thumb_key, thumb_w, thumb_h, _human_size(len(thumb_bytes)),
+        thumb_key,
+        thumb_w,
+        thumb_h,
+        _human_size(len(thumb_bytes)),
     )
 
     # 计算感知哈希

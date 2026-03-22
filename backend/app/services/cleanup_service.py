@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -49,7 +49,7 @@ def _delete_raw_file(storage_path: str) -> None:
 
 async def cleanup_expired_raw_files(db: AsyncSession) -> int:
     """清理所有已过期的 raw 文件。返回处理的记录数。"""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = await db.execute(
         select(ArtworkImage).where(
             ArtworkImage.raw_expires_at.is_not(None),  # type: ignore[union-attr]

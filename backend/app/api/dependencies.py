@@ -30,7 +30,11 @@ async def require_admin(request: Request) -> None:
 
     # 2. 回退：X-Admin-Token header 或 admin_token cookie（bot / 旧前端兼容）
     static_token = request.headers.get("X-Admin-Token") or request.cookies.get("admin_token")
-    if static_token and settings.admin_token and hmac.compare_digest(static_token, settings.admin_token):
+    if (
+        static_token
+        and settings.admin_token
+        and hmac.compare_digest(static_token, settings.admin_token)
+    ):
         return
 
     raise HTTPException(status_code=401, detail="未授权")
@@ -49,7 +53,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_sess
         user_id = int(str(payload["sub"]))
         result = await db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
-    except (pyjwt.InvalidTokenError, KeyError, ValueError):
+    except pyjwt.InvalidTokenError, KeyError, ValueError:
         return None
 
 

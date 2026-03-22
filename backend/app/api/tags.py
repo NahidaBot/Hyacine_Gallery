@@ -35,8 +35,12 @@ async def list_tag_types(db: AsyncSession = DBDep) -> list[TagTypeResponse]:
     rows = await tag_service.get_tag_types(db)
     return [
         TagTypeResponse(
-            id=tt.id, name=tt.name, label=tt.label,
-            color=tt.color, sort_order=tt.sort_order, tag_count=count,
+            id=tt.id,
+            name=tt.name,
+            label=tt.label,
+            color=tt.color,
+            sort_order=tt.sort_order,
+            tag_count=count,
         )
         for tt, count in rows
     ]

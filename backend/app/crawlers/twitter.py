@@ -114,7 +114,10 @@ class TwitterCrawler(BaseCrawler):
 
             logger.info(
                 "Twitter 抓取成功: pid=%s, author=%s, images=%d, nsfw=%s",
-                tweet_id, author_screen, len(image_urls), is_nsfw,
+                tweet_id,
+                author_screen,
+                len(image_urls),
+                is_nsfw,
             )
 
             return CrawlResult(

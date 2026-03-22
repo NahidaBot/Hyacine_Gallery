@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import base64
 import json
 from typing import TYPE_CHECKING
 
 import webauthn
+from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     ResidentKeyRequirement,
     UserVerificationRequirement,
 )
-from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 
 from app.config import settings
 
@@ -32,7 +31,7 @@ def _origin() -> str:
 # ── 注册（Registration） ─────────────────────────────────────────────────────
 
 
-def begin_registration(user: "User") -> tuple[dict, str]:
+def begin_registration(user: User) -> tuple[dict, str]:
     """生成注册 options，返回 (options_dict, challenge_b64url)。"""
     options = webauthn.generate_registration_options(
         rp_id=_rp_id(),
@@ -71,7 +70,7 @@ def complete_registration(
 
 
 def begin_authentication(
-    credentials: list["WebAuthnCredential"],
+    credentials: list[WebAuthnCredential],
 ) -> tuple[dict, str]:  # type: ignore[type-arg]
     """生成认证 options，返回 (options_dict, challenge_b64url)。"""
     allow_credentials = [
@@ -91,7 +90,7 @@ def begin_authentication(
 
 def complete_authentication(
     response_json: dict,  # type: ignore[type-arg]
-    credential: "WebAuthnCredential",
+    credential: WebAuthnCredential,
     challenge_b64: str,
 ) -> int:
     """验证认证 response。返回新 sign_count（调用方需写回 DB）。"""

@@ -54,7 +54,9 @@ class MiYouSheCrawler(BaseCrawler):
         is_global = "hoyolab" in url
         logger.info("米游社抓取: post_id=%s, global=%s", post_id, is_global)
 
-        api_url = _API_GLOBAL.format(post_id=post_id) if is_global else _API_CN.format(post_id=post_id)
+        api_url = (
+            _API_GLOBAL.format(post_id=post_id) if is_global else _API_CN.format(post_id=post_id)
+        )
         referer = "https://www.hoyolab.com/" if is_global else "https://www.miyoushe.com/"
 
         headers = {
@@ -82,8 +84,12 @@ class MiYouSheCrawler(BaseCrawler):
             data = resp.json()
             retcode = data.get("retcode", -1)
             if retcode != 0:
-                logger.info("米游社 API 错误: retcode=%s, message=%s", retcode, data.get("message", ""))
-                return CrawlResult(success=False, error=f"米游社 API 错误: {data.get('message', retcode)}")
+                logger.info(
+                    "米游社 API 错误: retcode=%s, message=%s", retcode, data.get("message", "")
+                )
+                return CrawlResult(
+                    success=False, error=f"米游社 API 错误: {data.get('message', retcode)}"
+                )
 
             post = data.get("data", {}).get("post")
             if not post:
@@ -99,7 +105,13 @@ class MiYouSheCrawler(BaseCrawler):
             img_url = img.get("url", "")
             if img_url:
                 image_urls.append(img_url)
-                logger.info("  图片 %d: %dx%d, %s", i, img.get("width", 0), img.get("height", 0), img_url[:80])
+                logger.info(
+                    "  图片 %d: %dx%d, %s",
+                    i,
+                    img.get("width", 0),
+                    img.get("height", 0),
+                    img_url[:80],
+                )
 
         if not image_urls:
             return CrawlResult(success=False, error="帖子不包含图片")
@@ -131,7 +143,11 @@ class MiYouSheCrawler(BaseCrawler):
 
         logger.info(
             "米游社抓取成功: pid=%s, title=%s, author=%s, images=%d, tags=%s",
-            post_id, title[:50], author, len(image_urls), tags,
+            post_id,
+            title[:50],
+            author,
+            len(image_urls),
+            tags,
         )
 
         return CrawlResult(
