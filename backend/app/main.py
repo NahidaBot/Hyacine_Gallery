@@ -25,6 +25,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         async with async_session() as db:
             await vector_cache.load_from_db(db)
+    # 启动时初始化 FTS 全文搜索索引
+    from app.services.fts_service import ensure_fts_index, rebuild_fts_index
+
+    async with async_session() as db:
+        await ensure_fts_index(db)
+        await rebuild_fts_index(db)
     # 启动 raw 文件过期清理后台任务
     cleanup_task = asyncio.create_task(raw_cleanup_loop())
     yield

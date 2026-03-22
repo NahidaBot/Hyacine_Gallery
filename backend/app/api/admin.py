@@ -303,6 +303,18 @@ async def polish_titles(limit: int = 100, db: AsyncSession = DBDep) -> dict[str,
     return {"total": len(artworks), "polished": polished}
 
 
+# --- FTS 全文搜索 ---
+
+
+@router.post("/fts/rebuild")
+async def rebuild_fts(db: AsyncSession = DBDep) -> dict[str, int]:
+    """重建全文搜索索引（SQLite FTS5）。"""
+    from app.services.fts_service import rebuild_fts_index
+
+    count = await rebuild_fts_index(db)
+    return {"indexed": count}
+
+
 # --- AI 批量 Embedding ---
 
 

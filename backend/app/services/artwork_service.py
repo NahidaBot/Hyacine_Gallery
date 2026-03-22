@@ -47,12 +47,19 @@ async def get_artworks(
             | func.lower(Artwork.author).like(func.lower(name_pattern))
         )
     if q:
-        pattern = f"%{q}%"
-        query = query.where(
-            func.lower(Artwork.title).like(func.lower(pattern))
-            | func.lower(Artwork.title_zh).like(func.lower(pattern))
-            | func.lower(Artwork.author).like(func.lower(pattern))
-        )
+        # 优先尝试 FTS 全文搜索，无结果时 fallback 到 LIKE
+        from app.services.fts_service import fts_search_artwork_ids
+
+        fts_ids = await fts_search_artwork_ids(db, q)
+        if fts_ids:
+            query = query.where(Artwork.id.in_(fts_ids))
+        else:
+            pattern = f"%{q}%"
+            query = query.where(
+                func.lower(Artwork.title).like(func.lower(pattern))
+                | func.lower(Artwork.title_zh).like(func.lower(pattern))
+                | func.lower(Artwork.author).like(func.lower(pattern))
+            )
 
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar_one()
