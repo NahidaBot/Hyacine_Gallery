@@ -1,14 +1,15 @@
 import json
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.artwork import Artwork, ArtworkImage, ArtworkSource, BotPostLog, Tag
 from app.schemas.artwork import ArtworkCreate, ArtworkUpdate
+from app.services.author_service import get_or_create_author
 
 
-def _artwork_query():  # type: ignore[no-untyped-def]
+def _artwork_query() -> Select[tuple[Artwork]]:
     return select(Artwork).options(
         selectinload(Artwork.images),
         selectinload(Artwork.tags),
@@ -124,7 +125,7 @@ async def _get_or_create_tags(db: AsyncSession, tag_names: list[str]) -> list[Ta
 
 
 async def create_artwork(
-    db: AsyncSession, data: ArtworkCreate, raw_info: dict | None = None
+    db: AsyncSession, data: ArtworkCreate, raw_info: dict[str, object] | None = None
 ) -> Artwork:
     tags = await _get_or_create_tags(db, data.tags)
     images = [ArtworkImage(page_index=i, url_original=url) for i, url in enumerate(data.image_urls)]
@@ -136,6 +137,13 @@ async def create_artwork(
         is_primary=True,
         raw_info=json.dumps(raw_info or {}, ensure_ascii=False),
     )
+
+    # 关联或创建作者记录
+    author_ref = None
+    if data.author and data.author_id:
+        author_ref = await get_or_create_author(
+            db, platform=data.platform, platform_uid=data.author_id, name=data.author
+        )
 
     artwork = Artwork(
         platform=data.platform,
@@ -150,6 +158,7 @@ async def create_artwork(
         images=images,
         tags=tags,
         sources=[primary_source],
+        author_ref=author_ref,
     )
     db.add(artwork)
 
@@ -169,6 +178,15 @@ async def update_artwork(db: AsyncSession, artwork_id: int, data: ArtworkUpdate)
         value = getattr(data, field)
         if value is not None:
             setattr(artwork, field, value)
+
+    # 作者信息变更时同步更新 author_ref
+    new_author = data.author if data.author is not None else artwork.author
+    new_author_id = data.author_id if data.author_id is not None else artwork.author_id
+    if (data.author is not None or data.author_id is not None) and new_author and new_author_id:
+        author_ref = await get_or_create_author(
+            db, platform=artwork.platform, platform_uid=new_author_id, name=new_author
+        )
+        artwork.author_ref = author_ref
 
     if data.tags is not None:
         artwork.tags = await _get_or_create_tags(db, data.tags)
@@ -340,3 +358,24 @@ async def find_similar_by_phash(
 
     matches.sort(key=lambda x: x[1])
     return matches
+
+
+async def backfill_author_refs(db: AsyncSession) -> int:
+    """为所有缺少 author_ref_id 但有 author/author_id 的作品回填作者关联。返回更新的数量。"""
+    result = await db.execute(
+        select(Artwork).where(
+            Artwork.author_ref_id.is_(None),
+            Artwork.author != "",
+            Artwork.author_id != "",
+        )
+    )
+    artworks = result.scalars().all()
+    count = 0
+    for aw in artworks:
+        author_ref = await get_or_create_author(
+            db, platform=aw.platform, platform_uid=aw.author_id, name=aw.author
+        )
+        aw.author_ref = author_ref
+        count += 1
+    await db.commit()
+    return count

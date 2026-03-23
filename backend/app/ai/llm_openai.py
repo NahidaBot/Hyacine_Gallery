@@ -38,7 +38,7 @@ class OpenAILLMProvider(LLMProvider):
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"].strip()
+        return str(data["choices"][0]["message"]["content"]).strip()
 
     async def complete_with_images(
         self,
@@ -47,11 +47,11 @@ class OpenAILLMProvider(LLMProvider):
         system: str = "",
     ) -> str:
         """构建 OpenAI multimodal messages 格式。"""
-        messages: list[dict] = []  # type: ignore[type-arg]
+        messages: list[dict[str, object]] = []
         if system:
             messages.append({"role": "system", "content": system})
 
-        content: list[dict] = [{"type": "text", "text": prompt}]  # type: ignore[type-arg]
+        content: list[dict[str, object]] = [{"type": "text", "text": prompt}]
         for b64 in image_b64 or []:
             content.append(
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
@@ -64,4 +64,4 @@ class OpenAILLMProvider(LLMProvider):
         )
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"].strip()
+        return str(data["choices"][0]["message"]["content"]).strip()

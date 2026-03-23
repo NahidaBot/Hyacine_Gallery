@@ -1,9 +1,16 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.artwork import Artwork
+    from app.models.user import User
 
 
 class BotPostQueue(Base):
@@ -27,10 +34,10 @@ class BotPostQueue(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    artwork: Mapped[Artwork] = relationship(back_populates="queue_items")  # type: ignore[name-defined]  # noqa: F821
+    artwork: Mapped[Artwork] = relationship(back_populates="queue_items")  # noqa: F821
     added_by_user: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys="[BotPostQueue.added_by_user_id]"
-    )  # type: ignore[name-defined]
+    )
 
 
 class BotChannel(Base):

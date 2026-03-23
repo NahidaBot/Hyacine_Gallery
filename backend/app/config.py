@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     nsfw_threshold: float = 0.7
 
     # 调试
-    debug: bool = False
+    log_level: str = "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
 
 
 settings = Settings()

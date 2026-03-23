@@ -24,6 +24,7 @@ BOT_COMMANDS = [
     BotCommand("ping", "检查 bot 是否在线"),
     BotCommand("import", "（管理员）从 URL 导入作品"),
     BotCommand("post", "（管理员）发送作品到频道"),
+    BotCommand("settings", "（管理员）Bot 设置面板"),
 ]
 
 
@@ -54,12 +55,12 @@ def main() -> None:
         admin_token=bot_settings.admin_token,
     )
 
-    app = (
+    app: Application = (
         ApplicationBuilder()
+        .read_timeout(15)
+        .connect_timeout(15)
+        .write_timeout(15)
         .token(bot_settings.telegram_bot_token)
-        .connect_timeout(3.0)
-        .read_timeout(60.0)
-        .write_timeout(60.0)
         .post_init(set_commands)
         .build()
     )

@@ -14,6 +14,9 @@ class BotSettings(BaseSettings):
     telegram_comment_group: str = ""
     telegram_admin_chats: list[int] = []
 
+    # 画廊前端
+    gallery_url: str = "http://localhost"
+
     # 行为配置（默认值，可被后端 bot_settings 覆盖）
     notification_interval: int = 600
     message_tail_text: str = ""

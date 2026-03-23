@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+from typing import Any
 
 from app.ai.factory import get_llm_provider
 
@@ -23,7 +24,7 @@ async def suggest_tags(
     image_bytes: list[bytes] | None = None,
     existing_tags: list[str] | None = None,
     platform: str = "",
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """分析图片并建议标签。
 
     Returns:

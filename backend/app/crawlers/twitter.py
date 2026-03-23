@@ -7,7 +7,7 @@ import re
 
 import httpx
 
-from app.crawlers.base import BaseCrawler, CrawlResult
+from app.crawlers.base import BaseCrawler, CrawlResult, fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class TwitterCrawler(BaseCrawler):
         logger.info("请求 fxtwitter API: %s", api_url)
 
         async with httpx.AsyncClient(
-            timeout=30.0,
+            timeout=5.0,
             headers={
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -59,9 +59,9 @@ class TwitterCrawler(BaseCrawler):
             },
         ) as client:
             try:
-                resp = await client.get(api_url)
+                resp = await fetch_with_retry(client, "GET", api_url)
             except httpx.HTTPError as e:
-                logger.info("fxtwitter 请求失败: %s", e)
+                logger.info("fxtwitter 请求失败（已重试）: %s", e)
                 return CrawlResult(success=False, error=f"fxtwitter 请求失败: {e}")
 
             logger.info("fxtwitter 响应: status=%d, length=%d", resp.status_code, len(resp.content))

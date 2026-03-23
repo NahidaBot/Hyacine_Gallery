@@ -58,7 +58,7 @@ def _detect_nsfw_local(image_bytes: bytes) -> float:
 
     if _local_classifier is None:
         try:
-            from transformers import pipeline
+            from transformers import pipeline  # type: ignore[import-not-found]
         except ImportError as e:
             msg = "本地 NSFW 检测需要安装 transformers: uv pip install -e '.[ai]'"
             raise ImportError(msg) from e

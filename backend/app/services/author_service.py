@@ -1,5 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.artwork import Artwork
 from app.models.author import Author
@@ -45,9 +46,12 @@ async def get_author_by_platform_uid(
 async def get_or_create_author(
     db: AsyncSession, platform: str, platform_uid: str, name: str
 ) -> Author:
-    """获取已有作者记录，若不存在则创建。"""
+    """获取已有作者记录，若不存在则创建；已存在时同步更新名称。"""
     existing = await get_author_by_platform_uid(db, platform, platform_uid)
     if existing:
+        if name and existing.name != name:
+            existing.name = name
+            await db.flush()
         return existing
     author = Author(name=name, platform=platform, platform_uid=platform_uid)
     db.add(author)
@@ -106,10 +110,17 @@ async def get_artworks_by_author_with_canonical(
 
     q = (
         select(Artwork)
+        .options(
+            selectinload(Artwork.images),
+            selectinload(Artwork.tags),
+            selectinload(Artwork.sources),
+        )
         .where(Artwork.author_ref_id.in_(author_ids))
         .order_by(Artwork.created_at.desc())
     )
-    count_q = select(func.count()).select_from(q.subquery())
+    count_q = select(func.count()).select_from(
+        select(Artwork.id).where(Artwork.author_ref_id.in_(author_ids)).subquery()
+    )
     total: int = (await db.execute(count_q)).scalar_one()
 
     q = q.offset((page - 1) * page_size).limit(page_size)
@@ -126,11 +137,18 @@ async def get_artworks_by_author(
     """获取某作者关联的作品列表（通过 author_ref_id）。"""
     q = (
         select(Artwork)
+        .options(
+            selectinload(Artwork.images),
+            selectinload(Artwork.tags),
+            selectinload(Artwork.sources),
+        )
         .where(Artwork.author_ref_id == author_id)
         .order_by(Artwork.created_at.desc())
     )
 
-    count_q = select(func.count()).select_from(q.subquery())
+    count_q = select(func.count()).select_from(
+        select(Artwork.id).where(Artwork.author_ref_id == author_id).subquery()
+    )
     total: int = (await db.execute(count_q)).scalar_one()
 
     q = q.offset((page - 1) * page_size).limit(page_size)

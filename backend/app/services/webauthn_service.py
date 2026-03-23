@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Any
 
+import jwt
 import webauthn
 from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
 from webauthn.helpers.structs import (
@@ -28,10 +30,36 @@ def _origin() -> str:
     return settings.webauthn_origin
 
 
+# ── Challenge Token ──────────────────────────────────────────────────────────
+# 无用户名认证流程中，begin 阶段不知道用户是谁，无法将 challenge 存在 User 记录上。
+# 改用签名的短期 JWT 来传递 challenge，complete 时由前端带回。
+
+
+def create_challenge_token(challenge_b64: str) -> str:
+    """将 challenge 打包为签名的短期 JWT（5 分钟有效）。"""
+    payload = {
+        "challenge": challenge_b64,
+        "exp": int(time.time()) + 300,
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+
+
+def verify_challenge_token(token: str) -> str:
+    """验证 challenge token，返回 challenge_b64。过期或篡改时抛异常。"""
+    payload = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    return str(payload["challenge"])
+
+
+def user_handle_to_id(user_handle_b64: str) -> int:
+    """将 base64url 编码的 userHandle 解码为用户 ID。"""
+    raw = base64url_to_bytes(user_handle_b64)
+    return int.from_bytes(raw, "big")
+
+
 # ── 注册（Registration） ─────────────────────────────────────────────────────
 
 
-def begin_registration(user: User) -> tuple[dict, str]:
+def begin_registration(user: User) -> tuple[dict[str, Any], str]:
     """生成注册 options，返回 (options_dict, challenge_b64url)。"""
     options = webauthn.generate_registration_options(
         rp_id=_rp_id(),
@@ -40,7 +68,7 @@ def begin_registration(user: User) -> tuple[dict, str]:
         user_name=user.tg_username or user.email or f"user_{user.id}",
         user_display_name=user.tg_username or user.email or f"User {user.id}",
         authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.PREFERRED,
+            resident_key=ResidentKeyRequirement.REQUIRED,
             user_verification=UserVerificationRequirement.PREFERRED,
         ),
     )
@@ -69,19 +97,11 @@ def complete_registration(
 # ── 认证（Authentication） ───────────────────────────────────────────────────
 
 
-def begin_authentication(
-    credentials: list[WebAuthnCredential],
-) -> tuple[dict, str]:  # type: ignore[type-arg]
-    """生成认证 options，返回 (options_dict, challenge_b64url)。"""
-    allow_credentials = [
-        webauthn.helpers.structs.PublicKeyCredentialDescriptor(
-            id=base64url_to_bytes(cred.credential_id)
-        )
-        for cred in credentials
-    ]
+def begin_authentication() -> tuple[dict, str]:  # type: ignore[type-arg]
+    """生成无用户名认证 options（空 allowCredentials），返回 (options_dict, challenge_b64url)。"""
     options = webauthn.generate_authentication_options(
         rp_id=_rp_id(),
-        allow_credentials=allow_credentials,
+        allow_credentials=[],
         user_verification=UserVerificationRequirement.PREFERRED,
     )
     challenge_b64 = bytes_to_base64url(options.challenge)

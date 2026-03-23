@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -286,6 +289,13 @@ class GalleryClient:
         if tags:
             payload["tags"] = tags
         resp = await self.http.post("/api/admin/artworks/import", json=payload)
+        if resp.status_code != 200:
+            logger.error(
+                "导入请求失败: status=%s url=%s body=%s",
+                resp.status_code,
+                url,
+                resp.text[:500],
+            )
         resp.raise_for_status()
         data = resp.json()
         return ArtworkData.from_response(data["artwork"])
@@ -371,6 +381,11 @@ class GalleryClient:
         resp = await self.http.get("/api/admin/bot/settings")
         resp.raise_for_status()
         return {s["key"]: s["value"] for s in resp.json()}
+
+    async def update_bot_settings(self, settings: dict[str, str]) -> None:
+        """批量更新 bot 设置到后端。"""
+        resp = await self.http.put("/api/admin/bot/settings", json={"settings": settings})
+        resp.raise_for_status()
 
     async def download_image(self, url: str) -> bytes:
         """下载图片字节（兼容本地存储 URL 和 S3 公开 URL）。"""

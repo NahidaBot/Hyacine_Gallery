@@ -4,6 +4,7 @@ from handlers.artwork import import_command, post_command, random_command, searc
 from handlers.basic import help_command, ping_command, start_command
 from handlers.original import TELEGRAM_SYSTEM_USER_ID, channel_post_handler
 from handlers.photo import callback_handler, photo_handler
+from handlers.settings import settings_command
 
 
 def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
@@ -14,6 +15,7 @@ def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
     app.add_handler(CommandHandler("search", search_command))
     app.add_handler(CommandHandler("post", post_command))
     app.add_handler(CommandHandler("import", import_command))
+    app.add_handler(CommandHandler("settings", settings_command))
 
     # 监听评论群中频道帖子通知（来自系统用户 777000），自动回复原图（无压缩）
     app.add_handler(

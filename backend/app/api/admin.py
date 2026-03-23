@@ -1,5 +1,7 @@
 import io
 import json
+import logging
+from typing import Any
 
 import imagehash
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -40,6 +42,8 @@ from app.services import (
     storage_service,
     tag_service,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[AdminDep])
 
@@ -118,6 +122,8 @@ async def import_artwork(
     current_user: User | None = CurrentUserDep,
 ) -> ImportResponse:
     """抓取 URL，通过 platform+pid 和 pHash 去重，创建或合并。"""
+    logger.info("导入请求: url=%s tags=%s auto_merge=%s", data.url, data.tags, data.auto_merge)
+
     # 快速路径：若能从 URL 直接提取 identity，先查 DB，命中则跳过爬虫
     identity = try_extract_identity(data.url)
     if identity:
@@ -131,6 +137,7 @@ async def import_artwork(
 
     result = await crawl(data.url)
     if not result.success:
+        logger.warning("抓取失败: url=%s error=%s", data.url, result.error)
         raise HTTPException(422, f"抓取失败: {result.error}")
 
     # 第一步：同平台通过 artwork_sources 去重
@@ -320,7 +327,10 @@ async def rebuild_fts(db: AsyncSession = DBDep) -> dict[str, int]:
 
 
 @router.post("/artworks/{artwork_id}/suggest-tags")
-async def suggest_tags_for_artwork(artwork_id: int, db: AsyncSession = DBDep) -> list[dict]:
+async def suggest_tags_for_artwork(
+    artwork_id: int,
+    db: AsyncSession = DBDep,
+) -> list[dict[str, Any]]:
     """使用 LLM 视觉分析作品图片并建议标签（不自动应用）。"""
     if not settings.ai_llm_enabled:
         raise HTTPException(400, "LLM 功能未启用")
@@ -571,7 +581,10 @@ async def merge_artwork(
 
 
 @router.get("/tags/duplicates")
-async def get_duplicate_tags(threshold: float = 0.8, db: AsyncSession = DBDep) -> list[dict]:
+async def get_duplicate_tags(
+    threshold: float = 0.8,
+    db: AsyncSession = DBDep,
+) -> list[dict[str, Any]]:
     """检测相似度高于阈值的标签对。"""
     from app.services.tag_dedup_service import find_duplicate_tags
 
@@ -579,7 +592,7 @@ async def get_duplicate_tags(threshold: float = 0.8, db: AsyncSession = DBDep) -
 
 
 @router.post("/tags/merge")
-async def merge_tags_endpoint(data: dict, db: AsyncSession = DBDep) -> dict[str, str]:
+async def merge_tags_endpoint(data: dict[str, Any], db: AsyncSession = DBDep) -> dict[str, str]:
     """合并标签：将 merge_id 合并到 keep_id。"""
     keep_id = data.get("keep_id")
     merge_id = data.get("merge_id")
@@ -596,11 +609,18 @@ async def merge_tags_endpoint(data: dict, db: AsyncSession = DBDep) -> dict[str,
 
 
 @router.get("/cleanup/orphan-images")
-async def get_orphan_images(db: AsyncSession = DBDep) -> list[dict]:
+async def get_orphan_images(db: AsyncSession = DBDep) -> list[dict[str, Any]]:
     """查找 storage_path 指向不存在文件的图片记录。"""
     from app.services.cleanup_service import find_orphan_images
 
     return await find_orphan_images(db)
+
+
+@router.post("/backfill/author-refs")
+async def backfill_author_refs(db: AsyncSession = DBDep) -> dict[str, int]:
+    """为缺少 author_ref_id 的存量作品回填作者关联。"""
+    count = await artwork_service.backfill_author_refs(db)
+    return {"updated": count}
 
 
 @router.post("/cleanup/orphan-images")

@@ -59,13 +59,9 @@ class PasskeyRegisterCompleteRequest(BaseModel):
     device_name: str = ""
 
 
-class PasskeyAuthBeginRequest(BaseModel):
-    identifier: str  # tg_username 或 email
-
-
 class PasskeyAuthCompleteRequest(BaseModel):
     credential: dict  # type: ignore[type-arg]
-    identifier: str
+    challenge_token: str
 
 
 # ── 工具 ──────────────────────────────────────────────────────────────────────
@@ -198,33 +194,15 @@ async def passkey_register_complete(
     return {"status": "ok"}
 
 
-# ── Passkey 认证（无需登录） ────────────────────────────────────────────────────
+# ── Passkey 认证（无需登录，无需输入用户名） ─────────────────────────────────────
 
 
 @router.post("/passkey/auth/begin")
-async def passkey_auth_begin(
-    body: PasskeyAuthBeginRequest,
-    db: AsyncSession = DBDep,
-) -> dict:  # type: ignore[type-arg]
-    """按 tg_username 或 email 查找用户，生成认证 options。"""
-    result = await db.execute(
-        select(User).where((User.tg_username == body.identifier) | (User.email == body.identifier))
-    )
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="用户不存在")
-
-    creds_result = await db.execute(
-        select(WebAuthnCredential).where(WebAuthnCredential.user_id == user.id)
-    )
-    credentials = list(creds_result.scalars().all())
-    if not credentials:
-        raise HTTPException(status_code=400, detail="该用户未绑定任何 Passkey")
-
-    options, challenge_b64 = webauthn_service.begin_authentication(credentials)
-    user.webauthn_challenge = challenge_b64
-    await db.commit()
-    return options
+async def passkey_auth_begin() -> dict:  # type: ignore[type-arg]
+    """生成无用户名认证 options，challenge 通过签名 token 传递。"""
+    options, challenge_b64 = webauthn_service.begin_authentication()
+    challenge_token = webauthn_service.create_challenge_token(challenge_b64)
+    return {**options, "challengeToken": challenge_token}
 
 
 @router.post("/passkey/auth/complete", response_model=TokenResponse)
@@ -232,13 +210,26 @@ async def passkey_auth_complete(
     body: PasskeyAuthCompleteRequest,
     db: AsyncSession = DBDep,
 ) -> TokenResponse:
-    """验证认证 response，颁发 JWT。"""
-    result = await db.execute(
-        select(User).where((User.tg_username == body.identifier) | (User.email == body.identifier))
-    )
-    user = result.scalar_one_or_none()
-    if not user or not user.webauthn_challenge:
-        raise HTTPException(status_code=400, detail="无有效的认证会话")
+    """验证认证 response，通过 userHandle 识别用户，颁发 JWT。"""
+    # 验证 challenge token
+    try:
+        challenge_b64 = webauthn_service.verify_challenge_token(body.challenge_token)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Challenge 无效或已过期：{e}") from e
+
+    # 通过 userHandle 识别用户
+    user_handle = body.credential.get("response", {}).get("userHandle")
+    if not user_handle:
+        raise HTTPException(status_code=400, detail="凭据缺少 userHandle，无法识别用户")
+
+    try:
+        user_id = webauthn_service.user_handle_to_id(user_handle)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"userHandle 解析失败：{e}") from e
+
+    user = await db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=400, detail="用户不存在")
 
     # 找到匹配的凭据
     credential_id = body.credential.get("id", "")
@@ -254,14 +245,13 @@ async def passkey_auth_complete(
 
     try:
         new_sign_count = webauthn_service.complete_authentication(
-            body.credential, credential, user.webauthn_challenge
+            body.credential, credential, challenge_b64
         )
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Passkey 验证失败：{e}") from e
 
     credential.sign_count = new_sign_count
     credential.last_used_at = _now_utc()
-    user.webauthn_challenge = None
     user.last_login_at = _now_utc()
     await db.commit()
 

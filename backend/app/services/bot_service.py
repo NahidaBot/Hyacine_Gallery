@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -109,7 +110,7 @@ async def delete_channel(db: AsyncSession, channel_id: int) -> bool:
     return True
 
 
-def _match_conditions(conditions: dict, artwork: Artwork) -> bool:
+def _match_conditions(conditions: dict[str, Any], artwork: Artwork) -> bool:
     """判断作品是否匹配频道的路由条件。"""
     if not conditions:
         return True

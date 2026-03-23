@@ -10,6 +10,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +32,8 @@ def _delete_raw_file(storage_path: str) -> None:
             path.unlink()
     else:
         try:
-            import boto3
-            from botocore.config import Config as BotoConfig
+            import boto3  # type: ignore[import-untyped]
+            from botocore.config import Config as BotoConfig  # type: ignore[import-untyped]
 
             s3 = boto3.client(
                 "s3",
@@ -52,8 +53,8 @@ async def cleanup_expired_raw_files(db: AsyncSession) -> int:
     now = datetime.now(UTC)
     result = await db.execute(
         select(ArtworkImage).where(
-            ArtworkImage.raw_expires_at.is_not(None),  # type: ignore[union-attr]
-            ArtworkImage.raw_expires_at <= now,  # type: ignore[operator]
+            ArtworkImage.raw_expires_at.is_not(None),
+            ArtworkImage.raw_expires_at <= now,
             ArtworkImage.storage_path_raw != "",
         )
     )
@@ -71,11 +72,11 @@ async def cleanup_expired_raw_files(db: AsyncSession) -> int:
     return len(expired)
 
 
-async def find_orphan_images(db: AsyncSession) -> list[dict]:
+async def find_orphan_images(db: AsyncSession) -> list[dict[str, Any]]:
     """找出 storage_path 指向不存在文件的 artwork_images 记录。"""
     result = await db.execute(select(ArtworkImage).where(ArtworkImage.storage_path != ""))
     images = result.scalars().all()
-    orphans: list[dict] = []
+    orphans: list[dict[str, Any]] = []
     for img in images:
         if not _file_exists(img.storage_path):
             orphans.append(

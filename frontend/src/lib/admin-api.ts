@@ -129,6 +129,7 @@ export async function adminUpdateArtwork(
   id: number,
   data: {
     title?: string;
+    title_zh?: string;
     author?: string;
     is_nsfw?: boolean;
     is_ai?: boolean;
@@ -452,24 +453,25 @@ export async function passkeyRegisterComplete(
   });
 }
 
-export async function passkeyAuthBegin(
-  identifier: string,
-): Promise<Record<string, unknown>> {
+export async function passkeyAuthBegin(): Promise<
+  Record<string, unknown> & { challengeToken: string }
+> {
   const res = await fetch(`${API_BASE}/api/auth/passkey/auth/begin`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ identifier }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
     throw new Error(text || `${res.status} ${res.statusText}`);
   }
-  return res.json() as Promise<Record<string, unknown>>;
+  return res.json() as Promise<
+    Record<string, unknown> & { challengeToken: string }
+  >;
 }
 
 export async function passkeyAuthComplete(
   credential: PublicKeyCredential,
-  identifier: string,
+  challengeToken: string,
 ): Promise<{ access_token: string; role: string }> {
   const response = credential.response as AuthenticatorAssertionResponse;
   const credentialJson = {
@@ -488,7 +490,10 @@ export async function passkeyAuthComplete(
   const res = await fetch(`${API_BASE}/api/auth/passkey/auth/complete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential: credentialJson, identifier }),
+    body: JSON.stringify({
+      credential: credentialJson,
+      challenge_token: challengeToken,
+    }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);

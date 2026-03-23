@@ -2,6 +2,7 @@
 
 import logging
 from difflib import SequenceMatcher
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +20,7 @@ def _similarity(a: str, b: str) -> float:
 async def find_duplicate_tags(
     db: AsyncSession,
     threshold: float = 0.8,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """找出相似度高于阈值的标签对。
 
     返回 [{"tag_a": {...}, "tag_b": {...}, "similarity": float}]
@@ -28,7 +29,7 @@ async def find_duplicate_tags(
     result = await db.execute(select(Tag).where(Tag.alias_of_id.is_(None)))
     tags = list(result.scalars().all())
 
-    duplicates: list[dict] = []
+    duplicates: list[dict[str, Any]] = []
     for i in range(len(tags)):
         for j in range(i + 1, len(tags)):
             a, b = tags[i], tags[j]

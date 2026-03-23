@@ -21,7 +21,9 @@ class LocalEmbeddingProvider(EmbeddingProvider):
     def _load_model(self) -> Any:
         if self._model is None:
             try:
-                from sentence_transformers import SentenceTransformer
+                from sentence_transformers import (  # type: ignore[import-not-found]
+                    SentenceTransformer,
+                )
             except ImportError as e:
                 msg = "本地 embedding 需要安装 sentence-transformers: uv pip install -e '.[ai]'"
                 raise ImportError(msg) from e

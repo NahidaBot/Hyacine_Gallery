@@ -139,10 +139,10 @@ async def test_passkey_register_complete_not_logged_in(app_client):
 
 
 @pytest.mark.asyncio
-async def test_passkey_auth_begin_user_not_found(app_client):
-    """passkey 认证 begin 时用户不存在应返回 404。"""
-    resp = await app_client.post(
-        "/api/auth/passkey/auth/begin",
-        json={"identifier": "nonexistent_user"},
-    )
-    assert resp.status_code == 404
+async def test_passkey_auth_begin_returns_options(app_client):
+    """passkey 认证 begin（无用户名模式）应返回 200 和 challenge options。"""
+    resp = await app_client.post("/api/auth/passkey/auth/begin")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "challengeToken" in data
+    assert "challenge" in data

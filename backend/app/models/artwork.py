@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -14,6 +17,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.author import Author
+    from app.models.user import User
 
 
 class Artwork(Base):
@@ -49,8 +56,8 @@ class Artwork(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
-    author_ref: Mapped[Author | None] = relationship(back_populates="artworks")  # type: ignore[name-defined]  # noqa: F821
-    imported_by: Mapped[User | None] = relationship(foreign_keys="[Artwork.imported_by_id]")  # type: ignore[name-defined]  # noqa: F821
+    author_ref: Mapped[Author | None] = relationship(back_populates="artworks")  # noqa: F821
+    imported_by: Mapped[User | None] = relationship(foreign_keys="[Artwork.imported_by_id]")  # noqa: F821
     sources: Mapped[list[ArtworkSource]] = relationship(
         back_populates="artwork", cascade="all, delete-orphan"
     )
@@ -158,7 +165,7 @@ class BotPostLog(Base):
     artwork: Mapped[Artwork] = relationship(back_populates="post_logs")
     posted_by_user: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys="[BotPostLog.posted_by_user_id]"
-    )  # type: ignore[name-defined]
+    )
 
 
 class ArtworkEmbedding(Base):

@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 
 import httpx
 
-from app.crawlers.base import BaseCrawler, CrawlResult
+from app.crawlers.base import BaseCrawler, CrawlResult, fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -61,26 +60,15 @@ class PixivCrawler(BaseCrawler):
         if not pid:
             return CrawlResult(success=False, error="无法提取 Pixiv 作品 ID")
 
-        max_retries = 10
         async with httpx.AsyncClient(headers=_HEADERS, timeout=2.0) as client:
-            # 获取作品详情（指数避让重试）
-            resp = None
-            for attempt in range(max_retries):
-                try:
-                    resp = await client.get(_AJAX_URL.format(pid=pid))
-                    break
-                except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
-                    if attempt == max_retries - 1:
-                        return CrawlResult(
-                            success=False, error=f"请求超时，已重试 {max_retries} 次: {e}"
-                        )
-                    wait = 2**attempt
-                    logger.warning(
-                        "Pixiv 请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e
-                    )
-                    await asyncio.sleep(wait)
+            # 获取作品详情（指数退避重试）
+            try:
+                resp = await fetch_with_retry(
+                    client, "GET", _AJAX_URL.format(pid=pid), max_retries=10
+                )
+            except httpx.HTTPError as e:
+                return CrawlResult(success=False, error=f"Pixiv 请求失败（已重试）: {e}")
 
-            assert resp is not None
             if resp.status_code != 200:
                 return CrawlResult(
                     success=False,
@@ -96,23 +84,13 @@ class PixivCrawler(BaseCrawler):
             body = data["body"]
 
             # 获取图片分页（同样重试）
-            pages_resp = None
-            for attempt in range(max_retries):
-                try:
-                    pages_resp = await client.get(_PAGES_URL.format(pid=pid))
-                    pages_resp.raise_for_status()
-                    break
-                except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
-                    if attempt == max_retries - 1:
-                        return CrawlResult(
-                            success=False, error=f"获取分页超时，已重试 {max_retries} 次: {e}"
-                        )
-                    wait = 2**attempt
-                    logger.warning(
-                        "Pixiv 分页请求失败（第 %d 次），%.0fs 后重试: %s", attempt + 1, wait, e
-                    )
-                    await asyncio.sleep(wait)
-            assert pages_resp is not None
+            try:
+                pages_resp = await fetch_with_retry(
+                    client, "GET", _PAGES_URL.format(pid=pid), max_retries=10
+                )
+                pages_resp.raise_for_status()
+            except httpx.HTTPError as e:
+                return CrawlResult(success=False, error=f"Pixiv 分页请求失败（已重试）: {e}")
             pages_data = pages_resp.json()
             image_urls = [page["urls"]["original"] for page in pages_data.get("body", [])]
 

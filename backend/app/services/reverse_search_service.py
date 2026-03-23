@@ -1,5 +1,6 @@
 """外部以图搜图服务 — SauceNAO + IQDB。"""
 
+import asyncio
 import logging
 import re
 from dataclasses import dataclass
@@ -20,19 +21,27 @@ class ReverseSearchResult:
     provider: str = ""  # "saucenao" or "iqdb"
 
 
-# SauceNAO index → platform mapping
-_SAUCENAO_INDEX_MAP: dict[int, str] = {
-    5: "pixiv",  # Pixiv
-    9: "danbooru",
-    12: "yandere",
-    25: "gelbooru",
-    34: "deviantart",
-    37: "anime-pictures",
-    38: "e-hentai",
-    40: "nhentai",
-    41: "twitter",
-    43: "kemono",
+# URL 域名 → platform 映射（用于从 ext_urls / source 字段推断平台）
+_URL_PLATFORM_MAP: dict[str, str] = {
+    "pixiv.net": "pixiv",
+    "twitter.com": "twitter",
+    "x.com": "twitter",
+    "danbooru.donmai.us": "danbooru",
+    "gelbooru.com": "gelbooru",
+    "yande.re": "yandere",
+    "deviantart.com": "deviantart",
+    "anime-pictures.net": "anime-pictures",
+    "kemono.su": "kemono",
+    "skeb.jp": "skeb",
 }
+
+
+def _platform_from_url(url: str) -> str:
+    """从 URL 推断平台名。"""
+    for domain, plat in _URL_PLATFORM_MAP.items():
+        if domain in url:
+            return plat
+    return "other"
 
 
 async def search_saucenao(
@@ -65,27 +74,42 @@ async def search_saucenao(
         if similarity < min_similarity:
             continue
 
-        index_id = header.get("index_id", 0)
-        platform = _SAUCENAO_INDEX_MAP.get(index_id, "other")
-        ext_urls = body.get("ext_urls", [])
-        source_url = ext_urls[0] if ext_urls else ""
+        title = body.get("title", "")
+        author = body.get("member_name", "") or body.get("creator", "")
+        thumb_url = header.get("thumbnail", "")
+        seen_urls: set[str] = set()
 
-        # Try to get better source for pixiv
+        # 收集所有候选 URL：pixiv_id > source 字段 > ext_urls
+        candidate_urls: list[str] = []
+
+        # pixiv_id 直接构造标准 URL（最可靠）
         if body.get("pixiv_id"):
-            source_url = f"https://www.pixiv.net/artworks/{body['pixiv_id']}"
-            platform = "pixiv"
+            candidate_urls.append(f"https://www.pixiv.net/artworks/{body['pixiv_id']}")
 
-        results.append(
-            ReverseSearchResult(
-                source_url=source_url,
-                similarity=similarity,
-                platform=platform,
-                title=body.get("title", ""),
-                author=body.get("member_name", "") or body.get("creator", ""),
-                thumb_url=header.get("thumbnail", ""),
-                provider="saucenao",
+        # data.source 字段：booru 结果中通常是原始来源（如 pixiv URL）
+        source_field = body.get("source", "")
+        if isinstance(source_field, str) and source_field.startswith("http"):
+            candidate_urls.append(source_field)
+
+        # ext_urls：SauceNAO 提供的所有外部链接
+        candidate_urls.extend(body.get("ext_urls", []))
+
+        for url in candidate_urls:
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            platform = _platform_from_url(url)
+            results.append(
+                ReverseSearchResult(
+                    source_url=url,
+                    similarity=similarity,
+                    platform=platform,
+                    title=title,
+                    author=author,
+                    thumb_url=thumb_url,
+                    provider="saucenao",
+                )
             )
-        )
 
     results.sort(key=lambda r: r.similarity, reverse=True)
     return results
@@ -95,14 +119,8 @@ async def search_saucenao(
 _IQDB_SIMILARITY_RE = re.compile(r"(\d+)% similarity")
 _IQDB_LINK_RE = re.compile(r'<a href="(//[^"]+)"')
 
-_IQDB_DOMAIN_MAP: dict[str, str] = {
-    "danbooru.donmai.us": "danbooru",
-    "yande.re": "yandere",
-    "gelbooru.com": "gelbooru",
-    "anime-pictures.net": "anime-pictures",
-    "e-shuushuu.net": "e-shuushuu",
-    "konachan.com": "konachan",
-}
+# 需要过滤掉的搜索引擎域名（IQDB 结果中常混入 "Search on SauceNAO" 等链接）
+_IQDB_SKIP_DOMAINS = {"saucenao.com", "iqdb.org", "google.com", "tineye.com"}
 
 
 async def search_iqdb(
@@ -134,17 +152,19 @@ async def search_iqdb(
         if similarity < min_similarity:
             continue
 
-        link_match = _IQDB_LINK_RE.search(block)
-        if not link_match:
-            continue
-        url = "https:" + link_match.group(1)
+        # 遍历 block 内所有链接，跳过搜索引擎域名
+        url = ""
+        for link_path in _IQDB_LINK_RE.findall(block):
+            candidate = "https:" + link_path
+            if any(d in candidate for d in _IQDB_SKIP_DOMAINS):
+                continue
+            url = candidate
+            break
 
-        # Determine platform from URL domain
-        platform = "other"
-        for domain, plat in _IQDB_DOMAIN_MAP.items():
-            if domain in url:
-                platform = plat
-                break
+        if not url:
+            continue
+
+        platform = _platform_from_url(url)
 
         results.append(
             ReverseSearchResult(
@@ -164,13 +184,21 @@ async def reverse_search(
     api_key: str = "",
     min_similarity: float = 70.0,
 ) -> list[ReverseSearchResult]:
-    """统一入口: 先 SauceNAO（有 key 时），再 IQDB fallback。"""
-    results: list[ReverseSearchResult] = []
-
+    """统一入口: SauceNAO + IQDB 并行搜索，合并去重。"""
+    tasks: list[asyncio.Task[list[ReverseSearchResult]]] = []
     if api_key:
-        results = await search_saucenao(image_data, api_key, min_similarity)
-        if results:
-            return results
+        tasks.append(asyncio.create_task(search_saucenao(image_data, api_key, min_similarity)))
+    tasks.append(asyncio.create_task(search_iqdb(image_data, min_similarity)))
 
-    iqdb_results = await search_iqdb(image_data, min_similarity)
-    return iqdb_results
+    all_results = await asyncio.gather(*tasks)
+
+    # 合并并按 source_url 去重（保留相似度更高的）
+    best: dict[str, ReverseSearchResult] = {}
+    for batch in all_results:
+        for r in batch:
+            existing = best.get(r.source_url)
+            if not existing or r.similarity > existing.similarity:
+                best[r.source_url] = r
+
+    results = sorted(best.values(), key=lambda r: r.similarity, reverse=True)
+    return results

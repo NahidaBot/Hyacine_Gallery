@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -43,7 +44,7 @@ class BotChannelCreate(BaseModel):
     name: str = ""
     is_default: bool = False
     priority: int = 0
-    conditions: dict = {}
+    conditions: dict[str, Any] = {}
     enabled: bool = True
 
 
@@ -52,7 +53,7 @@ class BotChannelUpdate(BaseModel):
     name: str | None = None
     is_default: bool | None = None
     priority: int | None = None
-    conditions: dict | None = None
+    conditions: dict[str, Any] | None = None
     enabled: bool | None = None
 
 
@@ -63,7 +64,7 @@ class BotChannelResponse(BaseModel):
     name: str
     is_default: bool
     priority: int
-    conditions: dict
+    conditions: dict[str, Any]
     enabled: bool
     created_at: datetime
 

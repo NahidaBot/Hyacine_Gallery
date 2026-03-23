@@ -1,5 +1,53 @@
+import asyncio
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Any
+
+import httpx
+
+logger = logging.getLogger(__name__)
+
+_RETRYABLE_ERRORS = (
+    httpx.ConnectTimeout,
+    httpx.ReadTimeout,
+    httpx.WriteTimeout,
+    httpx.ConnectError,
+    httpx.ReadError,
+)
+
+
+async def fetch_with_retry(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    *,
+    max_retries: int = 5,
+    **kwargs: Any,
+) -> httpx.Response:
+    """带指数退避的 HTTP 请求。短超时快速失败，自动重试网络错误。
+
+    成功返回 Response（不检查状态码），网络错误耗尽重试次数后抛出最后的异常。
+    """
+    last_exc: Exception | None = None
+    for attempt in range(max_retries):
+        try:
+            return await client.request(method, url, **kwargs)
+        except _RETRYABLE_ERRORS as e:
+            last_exc = e
+            if attempt == max_retries - 1:
+                break
+            wait = min(2**attempt, 30)
+            logger.warning(
+                "请求失败（第 %d 次），%.0fs 后重试: %s %s — %s",
+                attempt + 1,
+                wait,
+                method,
+                url[:80],
+                e,
+            )
+            await asyncio.sleep(wait)
+    raise last_exc  # type: ignore[misc]
 
 
 @dataclass

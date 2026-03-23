@@ -40,7 +40,10 @@ async def require_admin(request: Request) -> None:
     raise HTTPException(status_code=401, detail="未授权")
 
 
-async def get_current_user(request: Request, db: AsyncSession = Depends(get_session)):  # type: ignore[return]  # noqa: B008
+async def get_current_user(
+    request: Request,
+    db: AsyncSession = Depends(get_session),  # noqa: B008
+) -> object | None:
     """从 JWT 解析当前用户；静态 token 或无 token 时返回 None。"""
     from app.models.user import User
 

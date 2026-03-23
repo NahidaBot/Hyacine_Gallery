@@ -72,4 +72,4 @@ def create_jwt(user_id: int, role: str) -> str:
 
 def decode_jwt(token: str) -> dict[str, object]:
     """解析并验证 JWT。失败抛 jwt.InvalidTokenError。"""
-    return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])  # type: ignore[return-value]
+    return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])

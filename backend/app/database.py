@@ -8,7 +8,7 @@ from app.config import settings
 
 _is_sqlite = settings.database_url.startswith("sqlite")
 
-_engine_kwargs: dict = {"echo": settings.debug}
+_engine_kwargs: dict[str, object] = {"echo": settings.log_level.upper() == "DEBUG"}
 if _is_sqlite:
     _engine_kwargs["connect_args"] = {"check_same_thread": False}
 

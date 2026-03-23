@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 import httpx
 
-from app.crawlers.base import BaseCrawler, CrawlResult
+from app.crawlers.base import BaseCrawler, CrawlResult, fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +70,11 @@ class MiYouSheCrawler(BaseCrawler):
             "X-Rpc-Language": "zh-cn",
         }
 
-        async with httpx.AsyncClient(timeout=30.0, headers=headers) as client:
+        async with httpx.AsyncClient(timeout=5.0, headers=headers) as client:
             try:
-                resp = await client.get(api_url)
+                resp = await fetch_with_retry(client, "GET", api_url)
             except httpx.HTTPError as e:
-                logger.info("米游社请求失败: %s", e)
+                logger.info("米游社请求失败（已重试）: %s", e)
                 return CrawlResult(success=False, error=f"米游社请求失败: {e}")
 
             logger.info("米游社响应: status=%d, length=%d", resp.status_code, len(resp.content))
@@ -101,7 +102,7 @@ class MiYouSheCrawler(BaseCrawler):
                 return CrawlResult(success=False, error="响应中无帖子数据")
 
         # 提取图片
-        image_list: list[dict] = post.get("image_list", [])
+        image_list: list[dict[str, Any]] = post.get("image_list", [])
         logger.info("找到 %d 张图片", len(image_list))
 
         image_urls: list[str] = []

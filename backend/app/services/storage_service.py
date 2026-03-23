@@ -112,7 +112,7 @@ def _process_image(
     max_edge: int | None = None,
 ) -> tuple[bytes, int, int]:
     """将图片数据转换为 WebP，可选缩放。返回 (webp_bytes, width, height)。"""
-    img = Image.open(io.BytesIO(data))
+    img: Image.Image = Image.open(io.BytesIO(data))
     img = img.convert("RGBA") if img.mode in ("RGBA", "PA", "P") else img.convert("RGB")
 
     if max_edge is not None:
@@ -121,7 +121,7 @@ def _process_image(
         if long_edge > max_edge:
             scale = max_edge / long_edge
             new_w, new_h = int(w * scale), int(h * scale)
-            img = img.resize((new_w, new_h), Image.LANCZOS)
+            img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
     buf = io.BytesIO()
     img.save(buf, format="WEBP", quality=quality)
@@ -144,8 +144,8 @@ async def _save_local(key: str, data: bytes) -> tuple[str, str]:
 async def _save_s3(key: str, data: bytes, content_type: str = "image/webp") -> tuple[str, str]:
     """上传字节到 S3 兼容存储。返回 (s3_key, public_url)。"""
     try:
-        import boto3
-        from botocore.config import Config as BotoConfig
+        import boto3  # type: ignore[import-untyped]
+        from botocore.config import Config as BotoConfig  # type: ignore[import-untyped]
     except ImportError as e:
         raise RuntimeError("S3 存储需要 boto3") from e
 

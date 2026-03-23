@@ -9,6 +9,9 @@ from app.services.webauthn_service import (
     begin_registration,
     complete_authentication,
     complete_registration,
+    create_challenge_token,
+    user_handle_to_id,
+    verify_challenge_token,
 )
 
 
@@ -71,7 +74,7 @@ async def test_complete_registration(mock_webauthn):
 
 @patch("app.services.webauthn_service.webauthn")
 async def test_begin_authentication(mock_webauthn):
-    """begin_authentication 应返回 (options_dict, challenge_b64url)。"""
+    """begin_authentication 应返回 (options_dict, challenge_b64url)，无需传入凭据。"""
     fake_options = MagicMock()
     fake_options.challenge = b"auth-challenge-bytes"
     mock_webauthn.generate_authentication_options.return_value = fake_options
@@ -79,12 +82,29 @@ async def test_begin_authentication(mock_webauthn):
         {"challenge": "xyz", "allowCredentials": []}
     )
 
-    cred = _make_fake_credential()
-    options_dict, challenge_b64 = begin_authentication([cred])
+    options_dict, challenge_b64 = begin_authentication()
 
     mock_webauthn.generate_authentication_options.assert_called_once()
     assert isinstance(options_dict, dict)
     assert isinstance(challenge_b64, str)
+
+
+async def test_challenge_token_roundtrip():
+    """create/verify challenge_token 应能正确往返。"""
+    challenge_b64 = "dGVzdC1jaGFsbGVuZ2U"
+    token = create_challenge_token(challenge_b64)
+    assert isinstance(token, str)
+    result = verify_challenge_token(token)
+    assert result == challenge_b64
+
+
+async def test_user_handle_to_id():
+    """user_handle_to_id 应将 8 字节 big-endian 还原为整数。"""
+    from webauthn.helpers import bytes_to_base64url
+
+    user_id = 42
+    handle_b64 = bytes_to_base64url(user_id.to_bytes(8, "big"))
+    assert user_handle_to_id(handle_b64) == user_id
 
 
 @patch("app.services.webauthn_service.webauthn")

@@ -47,7 +47,7 @@ class GalleryDLCrawler(BaseCrawler):
                 platform=metadata.get("category", "unknown"),
                 pid=str(metadata.get("id", "")),
                 title=metadata.get("title", ""),
-                author=metadata.get("author", metadata.get("user", "")),
+                author=str(metadata.get("author", metadata.get("user", ""))),
                 source_url=url,
                 image_urls=image_urls,
                 raw_info=metadata,
