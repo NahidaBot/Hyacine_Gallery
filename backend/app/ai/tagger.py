@@ -36,7 +36,7 @@ async def suggest_tags(
     # 将图片转为 base64
     image_b64: list[str] = []
     for data in image_bytes or []:
-        image_b64.append(base64.b64encode(data).encode("ascii").decode("ascii"))
+        image_b64.append(base64.b64encode(data).decode("ascii"))
 
     if not image_b64:
         return []
