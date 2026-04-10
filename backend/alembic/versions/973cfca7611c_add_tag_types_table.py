@@ -22,10 +22,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # Create tag_types table (if_not_exists for idempotency after partial runs)
     conn = op.get_bind()
-    result = conn.execute(
-        sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name='tag_types'")
-    )
-    table_exists = result.fetchone() is not None
+    table_exists = sa.inspect(conn).has_table("tag_types")
 
     if not table_exists:
         op.create_table(

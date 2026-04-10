@@ -1,0 +1,20 @@
+[Unit]
+Description=Hyacine Gallery frontend
+After=network-online.target hyacine-gallery-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hyacine-gallery
+Group=hyacine-gallery
+WorkingDirectory=/opt/hyacine-gallery/frontend/.next/standalone
+EnvironmentFile=/etc/hyacine-gallery/hyacine-gallery.env
+Environment=NODE_ENV=production
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

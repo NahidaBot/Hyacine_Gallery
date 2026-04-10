@@ -1,0 +1,17 @@
+[Unit]
+Description=Hyacine Gallery backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hyacine-gallery
+Group=hyacine-gallery
+WorkingDirectory=/opt/hyacine-gallery/backend
+EnvironmentFile=/etc/hyacine-gallery/hyacine-gallery.env
+ExecStart=/usr/bin/env /opt/hyacine-gallery/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
