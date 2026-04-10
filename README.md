@@ -11,7 +11,7 @@
 | 数据库 | SQLite (开发) / PostgreSQL 16 (生产) |
 | Bot | python-telegram-bot |
 | 爬虫 | Pixiv API, fxtwitter API, gallery-dl (通用回退) |
-| 部署 | Docker Compose |
+| 部署 | Docker Compose / systemd |
 
 ## 项目结构
 
@@ -34,6 +34,7 @@
 │   ├── handlers/          命令处理器
 │   ├── client.py          后端 API 客户端
 │   └── config.py          配置
+├── deploy/                systemd 服务模板和部署环境示例
 ├── docker-compose.yml     生产环境
 └── docker-compose.dev.yml 开发环境覆盖
 ```
@@ -84,12 +85,145 @@ uv pip install -e "."
 python -m main
 ```
 
-### 5. Docker（全栈）
+## Docker 部署
+
+主 `docker-compose.yml` 只运行三个应用服务：`backend`、`frontend` 和 `bot-telegram`。数据库不由 Compose 管理，后端始终通过 `DATABASE_URL` 连接外部数据库。
 
 ```bash
-docker compose up -d                                                 # 生产
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up    # 开发
+cp .env.example .env
+# 编辑 .env：
+# DATABASE_URL=postgresql+asyncpg://user:password@db.example.com:5432/hyacine_gallery
+# BACKEND_URL=https://api.example.com
+# BACKEND_PORT=8000
+# NEXT_PUBLIC_API_URL=https://api.example.com
+# FRONTEND_PORT=3000
+# SERVER_API_URL=http://backend:8000
+# GALLERY_URL=https://gallery.example.com
+docker compose build
+docker compose run --rm backend alembic upgrade head
+docker compose up -d
 ```
+
+`NEXT_PUBLIC_API_URL` 是浏览器访问后端的公开地址，也是 Next.js 的构建期变量；如果修改后端公开地址，需要重新执行 `docker compose build frontend` 并重启前端容器。`SERVER_API_URL` 是 Next.js 服务端渲染访问后端的内部地址，Docker Compose 默认使用 `http://backend:8000`。
+
+如果 Docker Desktop / Windows 占用了 `8000` 或 `3000`，可以在 `.env` 中改 `BACKEND_PORT` / `FRONTEND_PORT`，并同步更新 `NEXT_PUBLIC_API_URL` / `GALLERY_URL`。
+
+开发环境可以继续使用覆盖文件：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+## 本机 systemd 部署
+
+默认生产布局：
+
+| 路径 | 用途 |
+|------|------|
+| `/opt/hyacine-gallery` | 应用代码 |
+| `/etc/hyacine-gallery/hyacine-gallery.env` | backend/frontend/bot 共用环境文件 |
+| `/var/lib/hyacine-gallery/uploads` | 本地图片存储目录 |
+
+### 自动安装脚本
+
+```bash
+sudo deploy/install-systemd.sh
+```
+
+如果脚本首次创建了 `/etc/hyacine-gallery/hyacine-gallery.env`，它会在检测到占位值后停止。编辑配置后重新运行：
+
+```bash
+sudo /opt/hyacine-gallery/deploy/install-systemd.sh --no-sync
+```
+
+常用选项：
+
+```bash
+sudo deploy/install-systemd.sh --no-bot          # 不启用 Telegram bot 服务
+sudo deploy/install-systemd.sh --no-start        # 只安装，不启动服务
+deploy/install-systemd.sh --dry-run              # 只打印计划，不改系统
+sudo deploy/install-systemd.sh --app-dir /srv/hyacine-gallery
+```
+
+卸载 systemd 服务：
+
+```bash
+sudo deploy/uninstall-systemd.sh                 # 停用服务并移除 unit，保留代码、配置和数据
+deploy/uninstall-systemd.sh --dry-run            # 只打印计划，不改系统
+sudo deploy/uninstall-systemd.sh --purge --yes   # 完整删除代码、配置、数据和服务用户
+```
+
+### 1. 准备用户、目录和配置
+
+```bash
+sudo useradd --system --home /opt/hyacine-gallery --shell /usr/sbin/nologin hyacine-gallery
+sudo mkdir -p /opt/hyacine-gallery /etc/hyacine-gallery /var/lib/hyacine-gallery/uploads
+sudo chown -R hyacine-gallery:hyacine-gallery /opt/hyacine-gallery /var/lib/hyacine-gallery
+
+sudo cp deploy/env/hyacine-gallery.env.example /etc/hyacine-gallery/hyacine-gallery.env
+sudo editor /etc/hyacine-gallery/hyacine-gallery.env
+```
+
+生产环境至少需要设置：
+
+```env
+DATABASE_URL=postgresql+asyncpg://user:password@db.example.com:5432/hyacine_gallery
+BACKEND_URL=https://api.example.com
+NEXT_PUBLIC_API_URL=https://api.example.com
+SERVER_API_URL=http://localhost:8000
+GALLERY_URL=https://gallery.example.com
+STORAGE_LOCAL_PATH=/var/lib/hyacine-gallery/uploads
+ADMIN_PANEL_SLUG=change-me
+ADMIN_TOKEN=change-me
+JWT_SECRET=change-me
+```
+
+### 2. 安装应用依赖
+
+将代码部署到 `/opt/hyacine-gallery` 后执行：
+
+```bash
+cd /opt/hyacine-gallery/backend
+sudo -u hyacine-gallery uv venv
+sudo -u hyacine-gallery uv pip install -e .
+
+cd /opt/hyacine-gallery/bots/telegram
+sudo -u hyacine-gallery uv venv
+sudo -u hyacine-gallery uv pip install -e .
+
+cd /opt/hyacine-gallery/frontend
+sudo corepack enable
+sudo -u hyacine-gallery pnpm install --frozen-lockfile
+sudo -u hyacine-gallery bash -lc 'set -a; source /etc/hyacine-gallery/hyacine-gallery.env; set +a; pnpm build'
+```
+
+`NEXT_PUBLIC_API_URL` 会写入前端构建产物；修改该值后需要重新运行 `pnpm build` 并重启 `hyacine-gallery-frontend`。
+
+### 3. 执行数据库迁移
+
+```bash
+cd /opt/hyacine-gallery/backend
+sudo -u hyacine-gallery bash -lc 'set -a; source /etc/hyacine-gallery/hyacine-gallery.env; set +a; /opt/hyacine-gallery/backend/.venv/bin/alembic upgrade head'
+```
+
+### 4. 安装并启动 systemd 服务
+
+```bash
+sudo cp /opt/hyacine-gallery/deploy/systemd/*.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now hyacine-gallery-backend
+sudo systemctl enable --now hyacine-gallery-frontend
+sudo systemctl enable --now hyacine-gallery-bot-telegram
+```
+
+服务默认只监听本机地址：
+
+| 服务 | 地址 |
+|------|------|
+| backend | `127.0.0.1:8000` |
+| frontend | `127.0.0.1:3000` |
+
+生产环境通常再用 Nginx 或 Caddy 将公网域名反向代理到这两个本机端口。
 
 ## 功能说明
 

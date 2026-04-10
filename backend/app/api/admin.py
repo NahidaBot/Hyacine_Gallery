@@ -293,10 +293,16 @@ async def polish_titles(limit: int = 100, db: AsyncSession = DBDep) -> dict[str,
         raise HTTPException(400, "LLM 功能未启用")
 
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
 
     from app.models.artwork import Artwork
 
-    stmt = select(Artwork).where(Artwork.title_zh == "", Artwork.title != "").limit(limit)
+    stmt = (
+        select(Artwork)
+        .options(selectinload(Artwork.tags))
+        .where(Artwork.title_zh == "", Artwork.title != "")
+        .limit(limit)
+    )
     result = await db.execute(stmt)
     artworks = list(result.scalars().all())
 

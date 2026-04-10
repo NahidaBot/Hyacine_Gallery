@@ -52,9 +52,10 @@ def upgrade() -> None:
         sa.text("""
         INSERT INTO artwork_sources
             (artwork_id, platform, pid, source_url, is_primary, raw_info, created_at)
-        SELECT id, platform, pid, source_url, 1, raw_info, created_at
+        SELECT id, platform, pid, source_url, :is_primary, raw_info, created_at
         FROM artworks
-    """)
+    """),
+        {"is_primary": True},
     )
 
     with op.batch_alter_table("artwork_images", schema=None) as batch_op:

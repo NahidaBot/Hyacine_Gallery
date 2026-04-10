@@ -17,15 +17,26 @@ SYSTEM_PROMPT = """\
 - 如果标题本身无实际含义（如纯符号、编号），直接原样返回"""
 
 
+def _is_cjk_han(ch: str) -> bool:
+    """判断字符是否为 CJK 统一汉字（排除假名、谚文等）。"""
+    cp = ord(ch)
+    return (
+        0x4E00 <= cp <= 0x9FFF  # CJK Unified Ideographs
+        or 0x3400 <= cp <= 0x4DBF  # CJK Extension A
+        or 0x20000 <= cp <= 0x2A6DF  # CJK Extension B
+        or 0xF900 <= cp <= 0xFAFF  # CJK Compatibility Ideographs
+    )
+
+
 def _is_mostly_chinese(text: str, threshold: float = 0.5) -> bool:
-    """判断文本是否主要由中文字符组成。"""
+    """判断文本是否主要由中文汉字组成（排除日文假名）。"""
     if not text:
         return False
-    cjk_count = sum(1 for ch in text if unicodedata.category(ch).startswith("Lo"))
+    han_count = sum(1 for ch in text if _is_cjk_han(ch))
     alpha_count = sum(1 for ch in text if unicodedata.category(ch).startswith(("L",)))
     if alpha_count == 0:
         return False
-    return cjk_count / alpha_count > threshold
+    return han_count / alpha_count > threshold
 
 
 async def polish_title(title: str, tags: list[str], platform: str) -> str | None:

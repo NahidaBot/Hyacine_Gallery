@@ -1,0 +1,17 @@
+[Unit]
+Description=Hyacine Gallery Telegram bot
+After=network-online.target hyacine-gallery-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hyacine-gallery
+Group=hyacine-gallery
+WorkingDirectory=/opt/hyacine-gallery/bots/telegram
+EnvironmentFile=/etc/hyacine-gallery/hyacine-gallery.env
+ExecStart=/usr/bin/env /opt/hyacine-gallery/bots/telegram/.venv/bin/python -m main
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
