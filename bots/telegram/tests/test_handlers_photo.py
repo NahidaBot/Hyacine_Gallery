@@ -3,6 +3,8 @@
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from telegram.constants import ChatType
+
 from client import SimilarArtwork
 from handlers.photo import callback_handler, photo_handler
 from tests.conftest import _make_artwork_data
@@ -56,6 +58,19 @@ async def test_photo_handler_phash_results(mock_update, mock_context, mock_clien
     call_kwargs = status_msg.edit_text.call_args
     assert "相似作品" in call_kwargs[0][0]
     assert call_kwargs.kwargs.get("reply_markup") is not None
+
+
+async def test_photo_handler_ignores_channel_posts(mock_update, mock_context, mock_client):
+    """频道图片不应触发搜图提示，避免 bot 在公开频道里回复交互消息。"""
+    mock_update.effective_chat = MagicMock()
+    mock_update.effective_chat.type = ChatType.CHANNEL
+    mock_update.effective_user = None
+
+    await photo_handler(mock_update, mock_context)
+
+    mock_update.effective_message.reply_text.assert_not_awaited()
+    mock_client.check_admin.assert_not_awaited()
+    mock_client.search_by_image.assert_not_awaited()
 
 
 # ── photo_handler: pHash 无结果，非管理员 ────────────────────────────

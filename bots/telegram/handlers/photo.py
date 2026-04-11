@@ -8,7 +8,7 @@ import re
 import uuid
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.constants import ParseMode
+from telegram.constants import ChatType, ParseMode
 from telegram.ext import ContextTypes
 
 from config import bot_settings
@@ -87,6 +87,11 @@ def _store_url(context: ContextTypes.DEFAULT_TYPE, url: str) -> str:
 
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """统一入口：处理所有收到的图片消息。"""
+    chat = update.effective_chat
+    if chat and chat.type == ChatType.CHANNEL:
+        logger.info("忽略频道图片消息，避免 bot 将交互提示发到公开频道")
+        return
+
     message = update.effective_message
     if not message or not message.photo:
         return
