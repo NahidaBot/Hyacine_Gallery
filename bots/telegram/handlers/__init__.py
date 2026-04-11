@@ -29,7 +29,7 @@ def register_handlers(app: Application) -> None:  # type: ignore[type-arg]
     # 图片消息处理（搜图 + 转发提取 + 溯源），排除系统用户
     app.add_handler(
         MessageHandler(
-            filters.PHOTO & ~filters.User(TELEGRAM_SYSTEM_USER_ID),
+            filters.PHOTO & ~filters.ChatType.CHANNEL & ~filters.User(TELEGRAM_SYSTEM_USER_ID),
             photo_handler,
         )
     )

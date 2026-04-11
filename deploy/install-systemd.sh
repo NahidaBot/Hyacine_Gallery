@@ -8,6 +8,11 @@ DATA_DIR=${DATA_DIR:-/var/lib/hyacine-gallery}
 SERVICE_USER=${SERVICE_USER:-hyacine-gallery}
 SERVICE_GROUP=${SERVICE_GROUP:-hyacine-gallery}
 SOURCE_DIR=${SOURCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+INSTALLER_ORIGINAL_PATH=${INSTALLER_ORIGINAL_PATH:-${PATH:-}}
+UV_BIN=${UV_BIN:-}
+NODE_BIN=${NODE_BIN:-}
+PNPM_BIN=${PNPM_BIN:-}
+COREPACK_BIN=${COREPACK_BIN:-}
 ORIGINAL_ARGS=("$@")
 
 DO_SYNC=1
@@ -32,6 +37,10 @@ Options:
   --data-dir PATH       Data directory (default: $DATA_DIR)
   --user NAME           Service user/group (default: $SERVICE_USER)
   --source-dir PATH     Source checkout to install from (default: $SOURCE_DIR)
+  --uv-bin PATH         uv executable (default: auto-detect)
+  --node-bin PATH       node executable (default: auto-detect)
+  --pnpm-bin PATH       pnpm executable (default: auto-detect)
+  --corepack-bin PATH   corepack executable (default: auto-detect)
   --no-sync             Do not sync source into APP_DIR
   --no-deps             Skip Python/Node dependency installation
   --no-build            Skip frontend build
@@ -43,7 +52,8 @@ Options:
   -h, --help            Show this help
 
 Environment overrides:
-  APP_DIR, ENV_FILE, DATA_DIR, SERVICE_USER, SERVICE_GROUP, SOURCE_DIR
+  APP_DIR, ENV_FILE, DATA_DIR, SERVICE_USER, SERVICE_GROUP, SOURCE_DIR,
+  UV_BIN, NODE_BIN, PNPM_BIN, COREPACK_BIN
 EOF
 }
 
@@ -82,6 +92,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --source-dir)
       SOURCE_DIR=$2
+      shift 2
+      ;;
+    --uv-bin)
+      UV_BIN=$2
+      shift 2
+      ;;
+    --node-bin)
+      NODE_BIN=$2
+      shift 2
+      ;;
+    --pnpm-bin)
+      PNPM_BIN=$2
+      shift 2
+      ;;
+    --corepack-bin)
+      COREPACK_BIN=$2
       shift 2
       ;;
     --no-sync)
@@ -128,10 +154,108 @@ done
 
 if [[ ${EUID:-$(id -u)} -ne 0 && $DRY_RUN -eq 0 ]]; then
   if command -v sudo >/dev/null 2>&1; then
-    exec sudo -E bash "$0" "${ORIGINAL_ARGS[@]}"
+    INSTALLER_ORIGINAL_PATH=$PATH exec sudo -E bash "$0" "${ORIGINAL_ARGS[@]}"
   fi
   die "Run this script as root."
 fi
+
+shell_quote() {
+  printf '%q' "$1"
+}
+
+sed_replacement() {
+  printf '%s' "$1" | sed -e 's/[#&]/\\&/g'
+}
+
+add_candidate_dir() {
+  local dir=$1
+  [[ -n "$dir" ]] || return 0
+  [[ -d "$dir" ]] || return 0
+  TOOL_DIRS+=("$dir")
+}
+
+add_path_dirs() {
+  local path_value=$1
+  local dir
+  IFS=: read -r -a path_dirs <<<"$path_value"
+  for dir in "${path_dirs[@]}"; do
+    add_candidate_dir "$dir"
+  done
+}
+
+build_tool_dirs() {
+  local sudo_home
+  TOOL_DIRS=()
+  add_path_dirs "$INSTALLER_ORIGINAL_PATH"
+  add_path_dirs "${PATH:-}"
+  if [[ -n "${SUDO_USER:-}" ]]; then
+    sudo_home=$(getent passwd "$SUDO_USER" | cut -d: -f6 || true)
+    if [[ -n "$sudo_home" ]]; then
+      add_candidate_dir "$sudo_home/.local/bin"
+      add_candidate_dir "$sudo_home/.cargo/bin"
+      add_candidate_dir "$sudo_home/.npm-global/bin"
+    fi
+  fi
+  add_candidate_dir /usr/local/bin
+  add_candidate_dir /usr/local/sbin
+  add_candidate_dir /usr/bin
+  add_candidate_dir /usr/sbin
+  add_candidate_dir /bin
+  add_candidate_dir /sbin
+}
+
+resolve_tool() {
+  local var_name=$1
+  local tool_name=$2
+  local required=${3:-1}
+  local configured=${!var_name:-}
+  local found=""
+  local dir
+
+  if [[ -n "$configured" ]]; then
+    if [[ "$configured" == */* ]]; then
+      if [[ -x "$configured" || $DRY_RUN -eq 1 ]]; then
+        found=$configured
+      fi
+    else
+      found=$(command -v "$configured" 2>/dev/null || true)
+    fi
+  else
+    found=$(command -v "$tool_name" 2>/dev/null || true)
+  fi
+
+  if [[ -z "$found" ]]; then
+    for dir in "${TOOL_DIRS[@]}"; do
+      if [[ -x "$dir/$tool_name" ]]; then
+        found="$dir/$tool_name"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$found" ]]; then
+    if [[ $DRY_RUN -eq 1 ]]; then
+      if [[ $required -eq 1 ]]; then
+        warn "Missing command '$tool_name'. Install will require it."
+      else
+        warn "Missing optional command '$tool_name'."
+      fi
+      if [[ $required -eq 1 ]]; then
+        printf -v "$var_name" '%s' "$tool_name"
+      else
+        printf -v "$var_name" ''
+      fi
+      return 0
+    fi
+    if [[ $required -eq 1 ]]; then
+      die "Missing command '$tool_name'. Install it first, or pass --${tool_name}-bin /path/to/$tool_name."
+    fi
+    printf -v "$var_name" ''
+    return 0
+  fi
+
+  printf -v "$var_name" '%s' "$found"
+}
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -189,9 +313,12 @@ env_value() {
 }
 
 log "Checking required commands"
-require_command uv
-require_command node
+build_tool_dirs
+resolve_tool UV_BIN uv
+resolve_tool NODE_BIN node
+resolve_tool COREPACK_BIN corepack 0
 require_command systemctl
+UV_CMD=$(shell_quote "$UV_BIN")
 if [[ $DRY_RUN -eq 1 ]]; then
   warn "Dry run mode: no files, users, packages, migrations, or services will be changed."
 fi
@@ -280,24 +407,32 @@ fi
 
 if [[ $DO_DEPS -eq 1 ]]; then
   log "Installing backend dependencies"
-  run_as_service_user "cd '$APP_DIR/backend' && uv venv && uv pip install -e ."
+  run_as_service_user "cd $(shell_quote "$APP_DIR/backend") && $UV_CMD venv && $UV_CMD pip install -e ."
 
   log "Installing Telegram bot dependencies"
-  run_as_service_user "cd '$APP_DIR/bots/telegram' && uv venv && uv pip install -e ."
+  run_as_service_user "cd $(shell_quote "$APP_DIR/bots/telegram") && $UV_CMD venv && $UV_CMD pip install -e ."
 
   log "Installing frontend dependencies"
-  if command -v corepack >/dev/null 2>&1; then
-    run_cmd corepack enable
+  if [[ -n "$COREPACK_BIN" ]]; then
+    run_cmd "$COREPACK_BIN" enable
   else
     warn "corepack not found; assuming pnpm is already available."
   fi
-  require_command pnpm
-  run_as_service_user "cd '$APP_DIR/frontend' && pnpm install --frozen-lockfile"
+  resolve_tool PNPM_BIN pnpm
+  PNPM_CMD=$(shell_quote "$PNPM_BIN")
+  run_as_service_user "cd $(shell_quote "$APP_DIR/frontend") && $PNPM_CMD install --frozen-lockfile"
+else
+  resolve_tool PNPM_BIN pnpm 0
+  PNPM_CMD=$(shell_quote "$PNPM_BIN")
 fi
 
 if [[ $DO_BUILD -eq 1 ]]; then
+  if [[ -z "${PNPM_BIN:-}" ]]; then
+    resolve_tool PNPM_BIN pnpm
+    PNPM_CMD=$(shell_quote "$PNPM_BIN")
+  fi
   log "Building frontend"
-  run_as_service_user "$(source_env_command "cd '$APP_DIR/frontend' && pnpm build")"
+  run_as_service_user "$(source_env_command "cd $(shell_quote "$APP_DIR/frontend") && $PNPM_CMD build")"
 fi
 
 if [[ $DO_MIGRATE -eq 1 ]]; then
@@ -317,8 +452,9 @@ if [[ $DO_SERVICES -eq 1 ]]; then
       printf '[dry-run] render %s to /etc/systemd/system/%s\n' "$unit" "$unit_name"
     else
       sed \
-        -e "s#/opt/hyacine-gallery#$APP_DIR#g" \
-        -e "s#/etc/hyacine-gallery/hyacine-gallery.env#$ENV_FILE#g" \
+        -e "s#/opt/hyacine-gallery#$(sed_replacement "$APP_DIR")#g" \
+        -e "s#/etc/hyacine-gallery/hyacine-gallery.env#$(sed_replacement "$ENV_FILE")#g" \
+        -e "s#/usr/bin/node#$(sed_replacement "$NODE_BIN")#g" \
         -e "s#^User=hyacine-gallery#User=$SERVICE_USER#" \
         -e "s#^Group=hyacine-gallery#Group=$SERVICE_GROUP#" \
         "$unit" >"/etc/systemd/system/$unit_name"
